@@ -27,10 +27,16 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: colors.onPrimary, shape: BoxShape.circle),
-              child: Icon(Icons.spa_rounded, size: 56, color: colors.primary),
+            Hero(
+              tag: 'app-mark',
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(color: colors.onPrimary, shape: BoxShape.circle),
+                  child: Icon(Icons.spa_outlined, size: 56, color: colors.primary),
+                ),
+              ),
             ),
             const SizedBox(height: 24),
             Text(AppConstants.appName, style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: colors.onPrimary, fontWeight: FontWeight.bold)),
