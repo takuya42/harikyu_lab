@@ -166,3 +166,15 @@ final questionsProvider = StreamProvider<List<Question>>((ref) async* {
   final repository = await ref.watch(questionRepositoryProvider.future);
   yield* repository.watchQuestions();
 });
+
+final subjectQuestionsProvider =
+    StreamProvider.family<List<Question>, String?>((ref, subject) async* {
+  final repository = await ref.watch(questionRepositoryProvider.future);
+  await for (final questions in repository.watchQuestions()) {
+    yield subject == null
+        ? questions
+        : List.unmodifiable(
+            questions.where((question) => question.subject == subject),
+          );
+  }
+});

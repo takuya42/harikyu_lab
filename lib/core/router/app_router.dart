@@ -16,7 +16,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => _AppShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
-          GoRoute(path: '/questions', builder: (_, _) => const QuestionsScreen()),
+          GoRoute(
+            path: '/questions',
+            builder: (_, state) => QuestionsScreen(
+              subject: state.uri.queryParameters['subject'],
+            ),
+          ),
           GoRoute(path: '/categories', builder: (_, _) => const FeaturePlaceholder(title: 'カテゴリ一覧', description: '学習したい分野を選んで、効率よく知識を身につけましょう。', icon: Icons.grid_view_rounded)),
           GoRoute(path: '/mock-exam', builder: (_, _) => const FeaturePlaceholder(title: '模擬試験', description: '本番と同じ出題形式・制限時間で、現在の実力を確認できます。', icon: Icons.timer_rounded)),
           GoRoute(path: '/favorites', builder: (_, _) => const FeaturePlaceholder(title: 'お気に入り', description: 'お気に入りに登録した問題を、いつでもまとめて復習できます。', icon: Icons.favorite_rounded)),

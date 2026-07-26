@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
-import 'package:harikyu_lab/features/questions/domain/question.dart';
+import 'package:harikyu_lab/features/questions/domain/study_session.dart';
 import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
 
 class QuestionsScreen extends ConsumerStatefulWidget {
-  const QuestionsScreen({super.key});
+  const QuestionsScreen({super.key, this.subject});
+
+  final String? subject;
 
   @override
   ConsumerState<QuestionsScreen> createState() => _QuestionsScreenState();
@@ -16,8 +18,11 @@ class QuestionsScreen extends ConsumerStatefulWidget {
 class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   late final StudyStatisticsRepository _statisticsRepository;
   bool _isStudying = false;
+  bool _isFinished = false;
   int? _selectedAnswer;
   int _questionIndex = 0;
+  int _correctCount = 0;
+  List<StudyQuestion>? _sessionQuestions;
 
   @override
   void initState() {
@@ -29,22 +34,35 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     _statisticsRepository.startSession();
     setState(() {
       _isStudying = true;
+      _isFinished = false;
+      _sessionQuestions = null;
+      _questionIndex = 0;
+      _correctCount = 0;
       _selectedAnswer = null;
     });
   }
 
-  void _answer(int index, Question question) {
+  void _answer(int index, StudyQuestion question) {
     if (_selectedAnswer != null) return;
-    _statisticsRepository.recordAnswer(
-      isCorrect: index == question.correctAnswerIndex,
-    );
-    setState(() => _selectedAnswer = index);
+    final isCorrect = index == question.correctAnswerIndex;
+    _statisticsRepository.recordAnswer(isCorrect: isCorrect);
+    setState(() {
+      _selectedAnswer = index;
+      if (isCorrect) _correctCount++;
+    });
   }
 
-  void _next(int questionCount) => setState(() {
-        _questionIndex = (_questionIndex + 1) % questionCount;
-        _selectedAnswer = null;
-      });
+  void _next(int questionCount) {
+    if (_questionIndex == questionCount - 1) {
+      _statisticsRepository.endSession();
+      setState(() => _isFinished = true);
+      return;
+    }
+    setState(() {
+      _questionIndex++;
+      _selectedAnswer = null;
+    });
+  }
 
   @override
   void dispose() {
@@ -54,56 +72,54 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
 
   @override
   Widget build(BuildContext context) => AppPage(
-    title: '一問一答',
-    child: AnimatedSwitcher(
-      duration: const Duration(milliseconds: 260),
-      child: _isStudying ? _question(context) : _introduction(context),
-    ),
-  );
+        title: widget.subject ?? '一問一答',
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 260),
+          child: _isFinished
+              ? _result(context)
+              : _isStudying
+                  ? _question(context)
+                  : _introduction(context),
+        ),
+      );
 
   Widget _introduction(BuildContext context) => ListView(
-    key: const ValueKey('introduction'),
-    children: [
-      const SizedBox(height: 24),
-      Icon(
-        Icons.bolt_rounded,
-        size: 64,
-        color: Theme.of(context).colorScheme.primary,
-      ),
-      const SizedBox(height: 24),
-      Text(
-        'すきま時間に知識を確認',
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      const SizedBox(height: 12),
-      Text(
-        '開始すると学習時間を計測します。回答結果は学習データへ自動で反映されます。',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-      ),
-      const SizedBox(height: 32),
-      FilledButton.icon(
-        onPressed: _start,
-        icon: const Icon(Icons.play_arrow_rounded),
-        label: const Text('学習を始める'),
-      ),
-    ],
-  );
+        key: const ValueKey('introduction'),
+        children: [
+          const SizedBox(height: 24),
+          Icon(Icons.bolt_rounded, size: 64, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(height: 24),
+          Text(
+            widget.subject == null ? 'すきま時間に知識を確認' : '${widget.subject}を集中学習',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '問題と選択肢は、学習を始めるたびにランダムな順番で表示されます。',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 32),
+          FilledButton.icon(onPressed: _start, icon: const Icon(Icons.play_arrow_rounded), label: const Text('学習を始める')),
+        ],
+      );
 
   Widget _question(BuildContext context) {
-    final questions = ref.watch(questionsProvider);
+    final questions = ref.watch(subjectQuestionsProvider(widget.subject));
     return questions.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => _loadError(context, error),
+      error: (error, _) => _loadError(error),
       data: (items) {
-        if (items.isEmpty) return _loadError(context, '問題データが空です。');
-        final index = _questionIndex % items.length;
+        if (_sessionQuestions == null) {
+          _sessionQuestions = createStudySession(items);
+        }
+        final session = _sessionQuestions!;
+        if (session.isEmpty) return _loadError('${widget.subject ?? ''}の問題がありません。');
+        final question = session[_questionIndex];
         return RefreshIndicator(
           onRefresh: _refresh,
-          child: _questionList(context, items[index], index, items.length),
+          child: _questionList(context, question, _questionIndex, session.length),
         );
       },
     );
@@ -113,17 +129,14 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     try {
       final repository = await ref.read(questionRepositoryProvider.future);
       await repository.refresh();
-      ref.invalidate(questionsProvider);
-      await ref.read(questionsProvider.future);
+      ref.invalidate(subjectQuestionsProvider(widget.subject));
     } on Object {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('更新できませんでした。キャッシュ済みの問題を表示します。')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('更新できませんでした。キャッシュ済みの問題を表示します。')));
     }
   }
 
-  Widget _loadError(BuildContext context, Object error) => Center(
+  Widget _loadError(Object error) => Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.cloud_off_outlined, size: 48),
           const SizedBox(height: 16),
@@ -132,103 +145,95 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
           Text('$error', textAlign: TextAlign.center),
           const SizedBox(height: 16),
           OutlinedButton(
-            onPressed: () => ref.invalidate(questionsProvider),
+            onPressed: () =>
+                ref.invalidate(subjectQuestionsProvider(widget.subject)),
             child: const Text('再試行'),
           ),
         ]),
       );
 
-  Widget _questionList(
-    BuildContext context,
-    Question question,
-    int index,
-    int questionCount,
-  ) => ListView(
-    key: const ValueKey('question'),
-    children: [
-      Text(
-        '問題 ${index + 1} / $questionCount',
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      const SizedBox(height: 14),
-      if (question.subject.isNotEmpty || question.category.isNotEmpty) ...[
-        Text(
-          [question.subject, question.category]
-              .where((value) => value.isNotEmpty)
-              .join(' / '),
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 8),
-      ],
-      Text(
-        question.text,
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      const SizedBox(height: 24),
-      if (question.imageUrl.isNotEmpty) ...[
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            question.imageUrl,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
-      for (var answerIndex = 0;
-          answerIndex < question.choices.length;
-          answerIndex++) ...[
-        AppCard(
-          onTap: () => _answer(answerIndex, question),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                child: Text('${answerIndex + 1}'),
-              ),
-              const SizedBox(width: 16),
-              Expanded(child: Text(question.choices[answerIndex])),
-              if (_selectedAnswer == answerIndex)
-                Icon(
-                  answerIndex == question.correctAnswerIndex
-                      ? Icons.check_circle_rounded
-                      : Icons.cancel_rounded,
-                  color: answerIndex == question.correctAnswerIndex
-                      ? Colors.green
-                      : Colors.red,
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-      ],
-      if (_selectedAnswer != null) ...[
-        const SizedBox(height: 12),
-        Text(
-          _selectedAnswer == question.correctAnswerIndex
-              ? '正解です！'
-              : '正解は「${question.choices[question.correctAnswerIndex]}」です。',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 16),
-        if (question.explanation.isNotEmpty) ...[
-          Text(question.explanation),
-          const SizedBox(height: 16),
+  Widget _questionList(BuildContext context, StudyQuestion studyQuestion, int index, int count) {
+    final question = studyQuestion.question;
+    return ListView(
+      key: ValueKey('question-${question.id}'),
+      children: [
+        Text('問題 ${index + 1} / $count', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 14),
+        if (question.subject.isNotEmpty || question.category.isNotEmpty) ...[
+          Text([question.subject, question.category].where((value) => value.isNotEmpty).join(' / '), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 8),
         ],
-        OutlinedButton(
-          onPressed: () => _next(questionCount),
-          child: const Text('次の問題へ'),
-        ),
+        Text(question.text, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 24),
+        if (question.imageUrl.isNotEmpty) ...[
+          ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(question.imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox.shrink())),
+          const SizedBox(height: 24),
+        ],
+        for (var answerIndex = 0; answerIndex < studyQuestion.choices.length; answerIndex++) ...[
+          AppCard(
+            onTap: () => _answer(answerIndex, studyQuestion),
+            child: Row(children: [
+              CircleAvatar(backgroundColor: Theme.of(context).colorScheme.primaryContainer, child: Text('${answerIndex + 1}')),
+              const SizedBox(width: 16),
+              Expanded(child: Text(studyQuestion.choices[answerIndex])),
+              if (_selectedAnswer == answerIndex)
+                Icon(answerIndex == studyQuestion.correctAnswerIndex ? Icons.check_circle_rounded : Icons.cancel_rounded, color: answerIndex == studyQuestion.correctAnswerIndex ? Colors.green : Colors.red),
+            ]),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (_selectedAnswer != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            _selectedAnswer == studyQuestion.correctAnswerIndex ? '正解です！' : '正解は「${studyQuestion.choices[studyQuestion.correctAnswerIndex]}」です。',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          if (question.explanation.isNotEmpty) ...[const SizedBox(height: 16), Text(question.explanation)],
+          const SizedBox(height: 16),
+          OutlinedButton(onPressed: () => _next(count), child: Text(index == count - 1 ? '結果を見る' : '次の問題へ')),
+        ],
       ],
-    ],
-  );
+    );
+  }
+
+  Widget _result(BuildContext context) {
+    final total = _sessionQuestions!.length;
+    final incorrect = total - _correctCount;
+    final accuracy = total == 0 ? 0 : (_correctCount * 100 / total).round();
+    return ListView(
+      key: const ValueKey('result'),
+      children: [
+        const SizedBox(height: 32),
+        Icon(Icons.emoji_events_rounded, size: 72, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(height: 20),
+        Text('学習結果', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 24),
+        AppCard(child: Column(children: [
+          _ResultRow(label: '正答率', value: '$accuracy%'),
+          const Divider(),
+          _ResultRow(label: '正解数', value: '$_correctCount問'),
+          const Divider(),
+          _ResultRow(label: '不正解数', value: '$incorrect問'),
+        ])),
+        const SizedBox(height: 24),
+        FilledButton.icon(onPressed: _start, icon: const Icon(Icons.replay_rounded), label: const Text('もう一度学習する')),
+      ],
+    );
+  }
+}
+
+class _ResultRow extends StatelessWidget {
+  const _ResultRow({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(label),
+          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        ]),
+      );
 }
