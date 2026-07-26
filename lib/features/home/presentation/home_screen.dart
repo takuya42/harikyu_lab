@@ -17,23 +17,6 @@ class HomeScreen extends ConsumerWidget {
     _StudyItem('弱点復習', '間違いを克服', Icons.refresh_outlined, '/mistakes'),
   ];
 
-  static const subjects = <String>[
-    '医療概論',
-    '衛生学・公衆衛生学',
-    '関係法規',
-    '解剖学',
-    '生理学',
-    '病理学概論',
-    '臨床医学総論',
-    '臨床医学各論',
-    'リハビリテーション医学',
-    '東洋医学概論',
-    '経絡経穴概論',
-    '東洋医学臨床論',
-    'はり理論',
-    'きゅう理論',
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
@@ -85,29 +68,6 @@ class HomeScreen extends ConsumerWidget {
                         itemBuilder: (_, index) => _StudyCard(item: _items[index]),
                       );
                     }),
-                    const SizedBox(height: 36),
-                    Text('科目別学習', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 6),
-                    Text('学習する科目を選んでください', style: TextStyle(color: colors.onSurfaceVariant)),
-                    const SizedBox(height: 14),
-                    AppCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        children: [
-                          for (var index = 0; index < subjects.length; index++) ...[
-                            ListTile(
-                              leading: Icon(Icons.menu_book_outlined, color: colors.primary),
-                              title: Text(subjects[index], style: const TextStyle(fontWeight: FontWeight.w700)),
-                              trailing: const Icon(Icons.chevron_right_rounded),
-                              onTap: () => context.go(
-                                Uri(path: '/questions', queryParameters: {'subject': subjects[index]}).toString(),
-                              ),
-                            ),
-                            if (index < subjects.length - 1) const Divider(height: 1),
-                          ],
-                        ],
-                      ),
-                    ),
                   ]),
                 ))),
               ),

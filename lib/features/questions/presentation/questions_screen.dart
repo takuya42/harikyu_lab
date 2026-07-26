@@ -3,13 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
+import 'package:harikyu_lab/features/questions/data/favorite_question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
 import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
 
 class QuestionsScreen extends ConsumerStatefulWidget {
-  const QuestionsScreen({super.key, this.subject});
+  const QuestionsScreen({super.key, this.subject, this.favoritesOnly = false});
 
   final String? subject;
+  final bool favoritesOnly;
 
   @override
   ConsumerState<QuestionsScreen> createState() => _QuestionsScreenState();
@@ -72,7 +74,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
 
   @override
   Widget build(BuildContext context) => AppPage(
-        title: widget.subject ?? '一問一答',
+        title: widget.favoritesOnly ? 'お気に入り' : widget.subject ?? '一問一答',
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 260),
           child: _isFinished
@@ -90,7 +92,11 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
           Icon(Icons.bolt_rounded, size: 64, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 24),
           Text(
-            widget.subject == null ? 'すきま時間に知識を確認' : '${widget.subject}を集中学習',
+            widget.favoritesOnly
+                ? 'お気に入りをまとめて復習'
+                : widget.subject == null
+                    ? 'すきま時間に知識を確認'
+                    : '${widget.subject}を集中学習',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
@@ -101,7 +107,16 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
             style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 32),
-          FilledButton.icon(onPressed: _start, icon: const Icon(Icons.play_arrow_rounded), label: const Text('学習を始める')),
+          if (widget.favoritesOnly &&
+              (ref.watch(favoriteQuestionIdsProvider).asData?.value.isEmpty ??
+                  false))
+            const Padding(
+              padding: EdgeInsets.only(top: 20),
+              child: Text('お気に入りはまだありません',
+                  textAlign: TextAlign.center),
+            )
+          else
+            FilledButton.icon(onPressed: _start, icon: const Icon(Icons.play_arrow_rounded), label: const Text('学習を始める')),
         ],
       );
 
@@ -111,10 +126,23 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => _loadError(error),
       data: (items) {
+        final favoriteIds = ref.watch(favoriteQuestionIdsProvider);
+        if (widget.favoritesOnly && favoriteIds.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final filteredItems = widget.favoritesOnly
+            ? items
+                .where((question) =>
+                    favoriteIds.asData?.value.contains(question.id) ?? false)
+                .toList()
+            : items;
         if (_sessionQuestions == null) {
-          _sessionQuestions = createStudySession(items);
+          _sessionQuestions = createStudySession(filteredItems);
         }
         final session = _sessionQuestions!;
+        if (session.isEmpty && widget.favoritesOnly) {
+          return const Center(child: Text('お気に入りはまだありません'));
+        }
         if (session.isEmpty) return _loadError('${widget.subject ?? ''}の問題がありません。');
         final question = session[_questionIndex];
         return RefreshIndicator(
@@ -129,6 +157,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     try {
       final repository = await ref.read(questionRepositoryProvider.future);
       await repository.refresh();
+      ref.invalidate(questionsProvider);
       ref.invalidate(subjectQuestionsProvider(widget.subject));
     } on Object {
       if (!mounted) return;
@@ -157,7 +186,21 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     return ListView(
       key: ValueKey('question-${question.id}'),
       children: [
-        Text('問題 ${index + 1} / $count', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w700)),
+        Row(children: [
+          Expanded(child: Text('問題 ${index + 1} / $count', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w700))),
+          Consumer(builder: (context, ref, _) {
+            final isFavorite = ref.watch(favoriteQuestionIdsProvider).asData?.value.contains(question.id) ?? false;
+            return IconButton(
+              tooltip: isFavorite ? 'お気に入りから削除' : 'お気に入りに追加',
+              onPressed: () async {
+                final repository = await ref.read(favoriteQuestionRepositoryProvider.future);
+                await repository.toggle(question.id);
+              },
+              icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
+              color: isFavorite ? Colors.red : Theme.of(context).colorScheme.onSurfaceVariant,
+            );
+          }),
+        ]),
         const SizedBox(height: 14),
         if (question.subject.isNotEmpty || question.category.isNotEmpty) ...[
           Text([question.subject, question.category].where((value) => value.isNotEmpty).join(' / '), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
