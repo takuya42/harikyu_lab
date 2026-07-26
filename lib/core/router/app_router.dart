@@ -44,16 +44,28 @@ class _AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: child,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 260),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween(begin: const Offset(.025, 0), end: Offset.zero).animate(animation),
+            child: child,
+          ),
+        ),
+        child: KeyedSubtree(key: ValueKey(location), child: child),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) => context.go(_locations[index]),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'ホーム'),
-          NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book_rounded), label: '問題'),
-          NavigationDestination(icon: Icon(Icons.timer_outlined), selectedIcon: Icon(Icons.timer_rounded), label: '模試'),
-          NavigationDestination(icon: Icon(Icons.insights_outlined), selectedIcon: Icon(Icons.insights_rounded), label: '履歴'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: '設定'),
+          NavigationDestination(icon: Icon(Icons.home_outlined, size: 23), selectedIcon: Icon(Icons.home_rounded, size: 27), label: 'ホーム'),
+          NavigationDestination(icon: Icon(Icons.menu_book_outlined, size: 23), selectedIcon: Icon(Icons.menu_book_rounded, size: 27), label: '問題'),
+          NavigationDestination(icon: Icon(Icons.timer_outlined, size: 23), selectedIcon: Icon(Icons.timer_rounded, size: 27), label: '模試'),
+          NavigationDestination(icon: Icon(Icons.insights_outlined, size: 23), selectedIcon: Icon(Icons.insights_rounded, size: 27), label: '履歴'),
+          NavigationDestination(icon: Icon(Icons.settings_outlined, size: 23), selectedIcon: Icon(Icons.settings_rounded, size: 27), label: '設定'),
         ],
       ),
     );
