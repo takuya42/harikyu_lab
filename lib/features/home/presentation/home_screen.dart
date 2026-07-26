@@ -20,7 +20,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
-    final statistics = ref.watch(studyStatisticsProvider).valueOrNull ??
+    final statistics = ref.watch(studyStatisticsProvider).asData?.value ??
         const StudyStatistics();
     return Scaffold(
       body: SafeArea(
