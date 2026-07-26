@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
+import 'package:harikyu_lab/features/questions/data/question_repository.dart';
+import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
 
 class QuestionsScreen extends ConsumerStatefulWidget {
@@ -15,9 +17,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   late final StudyStatisticsRepository _statisticsRepository;
   bool _isStudying = false;
   int? _selectedAnswer;
-
-  static const _answers = ['心包経', '肺経', '腎経', '胃経'];
-  static const _correctAnswer = 1;
+  int _questionIndex = 0;
 
   @override
   void initState() {
@@ -33,11 +33,18 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     });
   }
 
-  void _answer(int index) {
+  void _answer(int index, Question question) {
     if (_selectedAnswer != null) return;
-    _statisticsRepository.recordAnswer(isCorrect: index == _correctAnswer);
+    _statisticsRepository.recordAnswer(
+      isCorrect: index == question.correctAnswerIndex,
+    );
     setState(() => _selectedAnswer = index);
   }
+
+  void _next(int questionCount) => setState(() {
+        _questionIndex = (_questionIndex + 1) % questionCount;
+        _selectedAnswer = null;
+      });
 
   @override
   void dispose() {
@@ -86,11 +93,44 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     ],
   );
 
-  Widget _question(BuildContext context) => ListView(
+  Widget _question(BuildContext context) {
+    final questions = ref.watch(questionsProvider);
+    return questions.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => _loadError(context, error),
+      data: (items) {
+        if (items.isEmpty) return _loadError(context, '問題データが空です。');
+        final index = _questionIndex % items.length;
+        return _questionList(context, items[index], index, items.length);
+      },
+    );
+  }
+
+  Widget _loadError(BuildContext context, Object error) => Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.cloud_off_outlined, size: 48),
+          const SizedBox(height: 16),
+          const Text('問題データを取得できませんでした。'),
+          const SizedBox(height: 8),
+          Text('$error', textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: () => ref.invalidate(questionsProvider),
+            child: const Text('再試行'),
+          ),
+        ]),
+      );
+
+  Widget _questionList(
+    BuildContext context,
+    Question question,
+    int index,
+    int questionCount,
+  ) => ListView(
     key: const ValueKey('question'),
     children: [
       Text(
-        '問題 1',
+        '問題 ${index + 1} / $questionCount',
         style: TextStyle(
           color: Theme.of(context).colorScheme.primary,
           fontWeight: FontWeight.w700,
@@ -98,29 +138,33 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       ),
       const SizedBox(height: 14),
       Text(
-        '十二経脈のうち、手の太陰経はどれか。',
+        question.text,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w800,
         ),
       ),
       const SizedBox(height: 24),
-      for (var index = 0; index < _answers.length; index++) ...[
+      for (var answerIndex = 0;
+          answerIndex < question.choices.length;
+          answerIndex++) ...[
         AppCard(
-          onTap: () => _answer(index),
+          onTap: () => _answer(answerIndex, question),
           child: Row(
             children: [
               CircleAvatar(
                 backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                child: Text('${index + 1}'),
+                child: Text('${answerIndex + 1}'),
               ),
               const SizedBox(width: 16),
-              Expanded(child: Text(_answers[index])),
-              if (_selectedAnswer == index)
+              Expanded(child: Text(question.choices[answerIndex])),
+              if (_selectedAnswer == answerIndex)
                 Icon(
-                  index == _correctAnswer
+                  answerIndex == question.correctAnswerIndex
                       ? Icons.check_circle_rounded
                       : Icons.cancel_rounded,
-                  color: index == _correctAnswer ? Colors.green : Colors.red,
+                  color: answerIndex == question.correctAnswerIndex
+                      ? Colors.green
+                      : Colors.red,
                 ),
             ],
           ),
@@ -130,12 +174,21 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       if (_selectedAnswer != null) ...[
         const SizedBox(height: 12),
         Text(
-          _selectedAnswer == _correctAnswer ? '正解です！' : '正解は「肺経」です。',
+          _selectedAnswer == question.correctAnswerIndex
+              ? '正解です！'
+              : '正解は「${question.choices[question.correctAnswerIndex]}」です。',
           textAlign: TextAlign.center,
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 16),
-        OutlinedButton(onPressed: _start, child: const Text('もう一度解く')),
+        if (question.explanation.isNotEmpty) ...[
+          Text(question.explanation),
+          const SizedBox(height: 16),
+        ],
+        OutlinedButton(
+          onPressed: () => _next(questionCount),
+          child: const Text('次の問題へ'),
+        ),
       ],
     ],
   );
