@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/widgets/feature_placeholder.dart';
 import 'package:harikyu_lab/features/home/presentation/home_screen.dart';
 import 'package:harikyu_lab/features/questions/presentation/questions_screen.dart';
+import 'package:harikyu_lab/features/questions/presentation/categories_screen.dart';
 import 'package:harikyu_lab/features/settings/presentation/settings_screen.dart';
 import 'package:harikyu_lab/features/splash/presentation/splash_screen.dart';
 
@@ -22,9 +23,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               subject: state.uri.queryParameters['subject'],
             ),
           ),
-          GoRoute(path: '/categories', builder: (_, _) => const FeaturePlaceholder(title: 'カテゴリ一覧', description: '学習したい分野を選んで、効率よく知識を身につけましょう。', icon: Icons.grid_view_rounded)),
+          GoRoute(path: '/categories', builder: (_, _) => const CategoriesScreen()),
           GoRoute(path: '/mock-exam', builder: (_, _) => const FeaturePlaceholder(title: '模擬試験', description: '本番と同じ出題形式・制限時間で、現在の実力を確認できます。', icon: Icons.timer_rounded)),
-          GoRoute(path: '/favorites', builder: (_, _) => const FeaturePlaceholder(title: 'お気に入り', description: 'お気に入りに登録した問題を、いつでもまとめて復習できます。', icon: Icons.favorite_rounded)),
+          GoRoute(path: '/favorites', builder: (_, _) => const QuestionsScreen(favoritesOnly: true)),
           GoRoute(path: '/mistakes', builder: (_, _) => const FeaturePlaceholder(title: '間違えた問題', description: '間違えた問題にもう一度取り組み、苦手分野を克服しましょう。', icon: Icons.replay_rounded)),
           GoRoute(path: '/history', builder: (_, _) => const FeaturePlaceholder(title: '学習履歴', description: '日々の学習量や正答率を振り返り、成長を確認できます。', icon: Icons.insights_rounded)),
           GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
