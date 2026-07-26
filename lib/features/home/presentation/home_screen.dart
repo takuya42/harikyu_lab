@@ -56,17 +56,28 @@ class HomeScreen extends ConsumerWidget {
                     Text('学習メニュー', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 14),
                     LayoutBuilder(builder: (context, constraints) {
-                      final columns = constraints.maxWidth >= 760 ? 3 : 2;
-                      return GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _items.length,
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: columns, mainAxisSpacing: 14, crossAxisSpacing: 14,
-                          childAspectRatio: constraints.maxWidth < 380 ? 1.15 : 1.35,
+                      const spacing = 16.0;
+                      final cardWidth = (constraints.maxWidth - spacing) / 2;
+                      return Column(children: [
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: 4,
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: spacing,
+                            crossAxisSpacing: spacing,
+                            mainAxisExtent: 148,
+                          ),
+                          itemBuilder: (_, index) => _StudyCard(item: _items[index]),
                         ),
-                        itemBuilder: (_, index) => _StudyCard(item: _items[index]),
-                      );
+                        const SizedBox(height: spacing),
+                        SizedBox(
+                          width: cardWidth,
+                          height: 148,
+                          child: _StudyCard(item: _items.last),
+                        ),
+                      ]);
                     }),
                   ]),
                 ))),
