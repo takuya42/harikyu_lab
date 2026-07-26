@@ -1,10 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harikyu_lab/app/app.dart';
+import 'package:harikyu_lab/features/questions/data/question_repository.dart';
+import 'package:harikyu_lab/features/questions/domain/question.dart';
+
+const testQuestion = Question(
+  id: '1', subject: '経絡', category: '基礎',
+  question: '十二経脈のうち、手の太陰経はどれか。',
+  choices: ['心包経', '肺経', '腎経', '胃経'], answer: '2', explanation: '手の太陰経は肺経です。',
+);
+
+ProviderScope testApp() => ProviderScope(
+  overrides: [questionsProvider.overrideWith((ref) async => [testQuestion])],
+  child: const HarikyuLabApp(),
+);
 
 void main() {
   testWidgets('スプラッシュからホームへ遷移する', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: HarikyuLabApp()));
+    await tester.pumpWidget(testApp());
     expect(find.text('はりきゅうラボ'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 900));
@@ -19,7 +32,7 @@ void main() {
   });
 
   testWidgets('ボトムナビゲーションで設定へ遷移する', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: HarikyuLabApp()));
+    await tester.pumpWidget(testApp());
     await tester.pump(const Duration(milliseconds: 900));
     await tester.pumpAndSettle();
 
@@ -29,7 +42,7 @@ void main() {
   });
 
   testWidgets('回答結果がホームの学習データへ反映される', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: HarikyuLabApp()));
+    await tester.pumpWidget(testApp());
     await tester.pump(const Duration(milliseconds: 900));
     await tester.pumpAndSettle();
 
