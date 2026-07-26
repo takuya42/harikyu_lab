@@ -1,30 +1,26 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:harikyu_lab/main.dart';
+import 'package:harikyu_lab/app/app.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('スプラッシュからホームへ遷移する', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: HarikyuLabApp()));
+    expect(find.text('はりきゅうラボ'), findsOneWidget);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('今日も国家試験合格に向けて\n学習しましょう'), findsOneWidget);
+    expect(find.text('過去問'), findsOneWidget);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('ボトムナビゲーションで設定へ遷移する', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: HarikyuLabApp()));
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('設定'));
+    await tester.pumpAndSettle();
+    expect(find.text('アカウント'), findsOneWidget);
   });
 }
