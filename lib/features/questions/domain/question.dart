@@ -6,6 +6,8 @@ class Question {
     required this.correctAnswerIndex,
     this.explanation = '',
     this.category = '',
+    this.subject = '',
+    this.imageUrl = '',
   });
 
   final String id;
@@ -14,6 +16,8 @@ class Question {
   final int correctAnswerIndex;
   final String explanation;
   final String category;
+  final String subject;
+  final String imageUrl;
 
   factory Question.fromSheetRow(Map<String, String> row) {
     final choices = [
@@ -22,7 +26,7 @@ class Question {
       row['choice3'] ?? '',
       row['choice4'] ?? '',
     ];
-    final answer = int.tryParse(row['correctAnswer'] ?? '');
+    final answer = int.tryParse(row['answer'] ?? row['correctAnswer'] ?? '');
     if ((row['id'] ?? '').isEmpty ||
         (row['question'] ?? '').isEmpty ||
         choices.any((choice) => choice.isEmpty) ||
@@ -38,6 +42,8 @@ class Question {
       correctAnswerIndex: answer - 1,
       explanation: row['explanation'] ?? '',
       category: row['category'] ?? '',
+      subject: row['subject'] ?? '',
+      imageUrl: row['image'] ?? '',
     );
   }
 
@@ -48,6 +54,8 @@ class Question {
         correctAnswerIndex: json['correctAnswerIndex'] as int,
         explanation: json['explanation'] as String? ?? '',
         category: json['category'] as String? ?? '',
+        subject: json['subject'] as String? ?? '',
+        imageUrl: json['imageUrl'] as String? ?? '',
       );
 
   Map<String, dynamic> toJson() => {
@@ -57,5 +65,7 @@ class Question {
         'correctAnswerIndex': correctAnswerIndex,
         'explanation': explanation,
         'category': category,
+        'subject': subject,
+        'imageUrl': imageUrl,
       };
 }
