@@ -55,17 +55,29 @@ class QuestionRepository {
     final rows = const CsvToListConverter(eol: '\n', shouldParseNumbers: false)
         .convert(source.replaceAll('\r\n', '\n'));
     if (rows.isEmpty) throw const FormatException('CSV is empty');
-    final headers = rows.first.map((cell) => cell.toString().trim().replaceFirst('\ufeff', '')).toList();
+    final headers = rows.first
+        .map(
+          (cell) => cell
+              .toString()
+              .trim()
+              .replaceFirst('\ufeff', ''),
+        )
+        .toList();
     if (!_requiredColumns.every(headers.contains)) {
       throw const FormatException('CSV does not contain all required columns');
     }
-    return rows.skip(1).where((row) => row.any((cell) => '$cell'.isNotEmpty)).map((row) {
-      final values = <String, String>{};
-      for (var index = 0; index < headers.length; index++) {
-        values[headers[index]] = index < row.length ? row[index].toString() : '';
-      }
-      return Question.fromCsvRow(values);
-    }).toList(growable: false);
+    return rows
+        .skip(1)
+        .where((row) => row.any((cell) => '$cell'.isNotEmpty))
+        .map((row) {
+          final values = <String, String>{};
+          for (var index = 0; index < headers.length; index++) {
+            values[headers[index]] =
+                index < row.length ? row[index].toString() : '';
+          }
+          return Question.fromCsvRow(values);
+        })
+        .toList(growable: false);
   }
 }
 

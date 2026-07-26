@@ -5,9 +5,13 @@ import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 
 const testQuestion = Question(
-  id: '1', subject: '経絡', category: '基礎',
+  id: '1',
+  subject: '経絡',
+  category: '基礎',
   question: '十二経脈のうち、手の太陰経はどれか。',
-  choices: ['心包経', '肺経', '腎経', '胃経'], answer: '2', explanation: '手の太陰経は肺経です。',
+  choices: ['心包経', '肺経', '腎経', '胃経'],
+  answer: '2',
+  explanation: '手の太陰経は肺経です。',
 );
 
 ProviderScope testApp() => ProviderScope(
