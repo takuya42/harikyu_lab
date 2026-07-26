@@ -101,9 +101,26 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       data: (items) {
         if (items.isEmpty) return _loadError(context, '問題データが空です。');
         final index = _questionIndex % items.length;
-        return _questionList(context, items[index], index, items.length);
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: _questionList(context, items[index], index, items.length),
+        );
       },
     );
+  }
+
+  Future<void> _refresh() async {
+    try {
+      final repository = await ref.read(questionRepositoryProvider.future);
+      await repository.refresh();
+      ref.invalidate(questionsProvider);
+      await ref.read(questionsProvider.future);
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('更新できませんでした。キャッシュ済みの問題を表示します。')),
+      );
+    }
   }
 
   Widget _loadError(BuildContext context, Object error) => Center(
@@ -137,6 +154,17 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         ),
       ),
       const SizedBox(height: 14),
+      if (question.subject.isNotEmpty || question.category.isNotEmpty) ...[
+        Text(
+          [question.subject, question.category]
+              .where((value) => value.isNotEmpty)
+              .join(' / '),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
       Text(
         question.text,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -144,6 +172,17 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         ),
       ),
       const SizedBox(height: 24),
+      if (question.imageUrl.isNotEmpty) ...[
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            question.imageUrl,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
       for (var answerIndex = 0;
           answerIndex < question.choices.length;
           answerIndex++) ...[

@@ -6,11 +6,18 @@ import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-const googleSheetsCsvUrl = String.fromEnvironment('QUESTIONS_SHEET_CSV_URL');
+const googleSheetsCsvUrl = String.fromEnvironment(
+  'QUESTIONS_SHEET_CSV_URL',
+  defaultValue:
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSyFXi-NgrS9YokHo5i183yOzt-c-7L00tR4qN4plO-ezWOcn_dpgrxgFXGXhGjILIMuJ0h0qViTCB/pub?output=csv',
+);
 
 abstract interface class QuestionRepository {
   /// Emits the local cache first, then the latest spreadsheet contents.
   Stream<List<Question>> watchQuestions();
+
+  /// Downloads the latest questions and replaces the local cache.
+  Future<List<Question>> refresh();
 }
 
 class GoogleSheetsQuestionRepository implements QuestionRepository {
@@ -33,14 +40,19 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
     if (cached != null) {
       yield cached;
       try {
-        yield await _fetchAndCache();
+        final latest = await refresh();
+        if (!_sameQuestions(cached, latest)) yield latest;
       } on Object {
         // The already emitted cache remains visible when background sync fails.
       }
       return;
     }
-    yield await _fetchAndCache();
+    yield await refresh();
   }
+
+  bool _sameQuestions(List<Question> first, List<Question> second) =>
+      jsonEncode(first.map((item) => item.toJson()).toList()) ==
+      jsonEncode(second.map((item) => item.toJson()).toList());
 
   List<Question>? _readCache() {
     final value = _preferences.getString(_cacheKey);
@@ -56,11 +68,14 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
     }
   }
 
-  Future<List<Question>> _fetchAndCache() async {
+  @override
+  Future<List<Question>> refresh() async {
     if (_sheetUrl.isEmpty) {
       throw StateError('QUESTIONS_SHEET_CSV_URL が設定されていません。');
     }
-    final response = await _client.get(Uri.parse(_sheetUrl));
+    final response = await _client
+        .get(Uri.parse(_sheetUrl))
+        .timeout(const Duration(seconds: 15));
     if (response.statusCode != 200) {
       throw http.ClientException('問題データの取得に失敗しました (${response.statusCode})');
     }
@@ -77,7 +92,11 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
     final table = _csvRows(source);
     if (table.isEmpty) return const [];
     final headers = table.first.map((value) => value.trim()).toList();
-    return table.skip(1).where((row) => row.any((cell) => cell.trim().isNotEmpty)).map((row) {
+    if (headers.isNotEmpty) headers[0] = headers[0].replaceFirst('\ufeff', '');
+    return table
+        .skip(1)
+        .where((row) => row.any((cell) => cell.trim().isNotEmpty))
+        .map((row) {
       final values = <String, String>{};
       for (var index = 0; index < headers.length; index++) {
         values[headers[index]] = index < row.length ? row[index].trim() : '';
@@ -104,7 +123,11 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
         row.add(field.toString());
         field = StringBuffer();
       } else if ((character == '\n' || character == '\r') && !quoted) {
-        if (character == '\r' && index + 1 < source.length && source[index + 1] == '\n') index++;
+        if (character == '\r' &&
+            index + 1 < source.length &&
+            source[index + 1] == '\n') {
+          index++;
+        }
         row.add(field.toString());
         rows.add(row);
         row = <String>[];
@@ -131,13 +154,13 @@ final sharedPreferencesProvider = FutureProvider<SharedPreferences>(
   (ref) => SharedPreferences.getInstance(),
 );
 
-final questionRepositoryProvider = FutureProvider<QuestionRepository>((ref) async {
-  return GoogleSheetsQuestionRepository(
+final questionRepositoryProvider = FutureProvider<QuestionRepository>(
+  (ref) async => GoogleSheetsQuestionRepository(
     client: ref.watch(httpClientProvider),
     preferences: await ref.watch(sharedPreferencesProvider.future),
     sheetUrl: googleSheetsCsvUrl,
-  );
-});
+  ),
+);
 
 final questionsProvider = StreamProvider<List<Question>>((ref) async* {
   final repository = await ref.watch(questionRepositoryProvider.future);
