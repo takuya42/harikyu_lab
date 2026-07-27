@@ -2,15 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:harikyu_lab/core/constants/app_constants.dart';
 
 class AppPage extends StatelessWidget {
-  const AppPage({required this.title, required this.child, super.key});
+  const AppPage({
+    required this.title,
+    required this.child,
+    this.leading,
+    super.key,
+  });
 
   final String title;
   final Widget child;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: leading,
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: SafeArea(

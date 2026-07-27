@@ -70,6 +70,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) => AppPage(
         title: widget.isRegistration ? '新規登録' : 'ログイン',
+        leading: BackButton(
+          onPressed: () => context.go('/settings'),
+        ),
         child: Form(
           key: _formKey,
           child: ListView(children: [

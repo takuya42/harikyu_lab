@@ -56,28 +56,23 @@ class HomeScreen extends ConsumerWidget {
                     Text('学習メニュー', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 14),
                     LayoutBuilder(builder: (context, constraints) {
-                      const spacing = 16.0;
-                      final cardWidth = (constraints.maxWidth - spacing) / 2;
-                      return Column(children: [
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: 4,
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: spacing,
-                            crossAxisSpacing: spacing,
-                            mainAxisExtent: 148,
-                          ),
-                          itemBuilder: (_, index) => _StudyCard(item: _items[index]),
+                      final columns = constraints.maxWidth < 420
+                          ? 1
+                          : constraints.maxWidth < 840
+                              ? 2
+                              : 3;
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _items.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          mainAxisExtent: 148,
                         ),
-                        const SizedBox(height: spacing),
-                        SizedBox(
-                          width: cardWidth,
-                          height: 148,
-                          child: _StudyCard(item: _items.last),
-                        ),
-                      ]);
+                        itemBuilder: (_, index) => _StudyCard(item: _items[index]),
+                      );
                     }),
                   ]),
                 ))),
