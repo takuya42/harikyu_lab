@@ -20,7 +20,7 @@ class QuestionsScreen extends ConsumerStatefulWidget {
 }
 
 class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
-  late final StudyStatisticsRepository _statisticsRepository;
+  late final Future<StudyStatisticsRepository> _statisticsRepository;
   bool _isStudying = false;
   bool _isFinished = false;
   int? _selectedAnswer;
@@ -31,11 +31,15 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   @override
   void initState() {
     super.initState();
-    _statisticsRepository = ref.read(studyStatisticsRepositoryProvider);
+    _statisticsRepository = ref.read(
+      studyStatisticsRepositoryProvider.future,
+    );
   }
 
-  void _start() {
-    _statisticsRepository.startSession();
+  Future<void> _start() async {
+    final repository = await _statisticsRepository;
+    repository.startSession();
+    if (!mounted) return;
     setState(() {
       _isStudying = true;
       _isFinished = false;
@@ -46,10 +50,12 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     });
   }
 
-  void _answer(int index, StudyQuestion question) {
+  Future<void> _answer(int index, StudyQuestion question) async {
     if (_selectedAnswer != null) return;
     final isCorrect = index == question.correctAnswerIndex;
-    _statisticsRepository.recordAnswer(isCorrect: isCorrect);
+    final repository = await _statisticsRepository;
+    await repository.recordAnswer(isCorrect: isCorrect);
+    if (!mounted) return;
     if (!isCorrect) {
       ref.read(mistakeQuestionRepositoryProvider.future).then(
             (repository) => repository.add(question.question.id),
@@ -61,9 +67,11 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     });
   }
 
-  void _next(int questionCount) {
+  Future<void> _next(int questionCount) async {
     if (_questionIndex == questionCount - 1) {
-      _statisticsRepository.endSession();
+      final repository = await _statisticsRepository;
+      await repository.endSession();
+      if (!mounted) return;
       setState(() => _isFinished = true);
       return;
     }
@@ -75,7 +83,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
 
   @override
   void dispose() {
-    _statisticsRepository.endSession();
+    _statisticsRepository.then((repository) => repository.endSession());
     super.dispose();
   }
 
