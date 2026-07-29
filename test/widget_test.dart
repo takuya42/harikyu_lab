@@ -46,6 +46,25 @@ void main() {
     expect(find.text('アカウント'), findsOneWidget);
   });
 
+  testWidgets('シェル内の画面遷移でGlobalKeyが重複しない', (tester) async {
+    await tester.pumpWidget(testApp());
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('模試'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('設定'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('ホーム'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('今日も、一歩ずつ。'), findsOneWidget);
+  });
+
   testWidgets('回答結果がホームの学習データへ反映される', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pump(const Duration(milliseconds: 900));

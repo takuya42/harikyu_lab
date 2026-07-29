@@ -54,19 +54,10 @@ class _AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 260),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween(begin: const Offset(.025, 0), end: Offset.zero).animate(animation),
-            child: child,
-          ),
-        ),
-        child: KeyedSubtree(key: ValueKey(location), child: child),
-      ),
+      // ShellRoute owns this child (and the Navigator key inside it). Keeping an
+      // outgoing copy in an AnimatedSwitcher temporarily inserts that same
+      // GlobalKey into two widget subtrees when the location changes.
+      body: child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) => context.go(_locations[index]),
