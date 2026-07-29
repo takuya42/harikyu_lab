@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class Question {
   const Question({
     required this.id,
@@ -27,6 +29,7 @@ class Question {
   factory Question.fromSheetRow(
     Map<String, String> row, {
     String fallbackId = '',
+    int? rowNumber,
   }) {
     String value(List<String> keys) {
       for (final key in keys) {
@@ -49,16 +52,25 @@ class Question {
     );
     final answer = _parseSheetAnswer(answerValue);
     final errors = <String>[
-      if (id.isEmpty && fallbackId.isEmpty) 'id',
-      if (question.isEmpty) 'question',
+      if (id.isEmpty && fallbackId.isEmpty) 'id が空です',
+      if (question.isEmpty) 'question が空です',
       for (var index = 0; index < choices.length; index++)
-        if (choices[index].isEmpty) 'choice${index + 1}',
-      if (answer == null) 'answer="$answerValue" (1-4 または A-D が必要)',
+        if (choices[index].isEmpty) 'option${index + 1} が空です',
+      if (answer == null) "answer='$answerValue' は無効です",
     ];
     if (errors.isNotEmpty) {
-      throw FormatException(
-        '問題データの不足・不正項目: ${errors.join(', ')}',
-      );
+      final rowLabel = rowNumber == null ? 'Row (unknown)' : 'Row $rowNumber';
+      debugPrint([
+        rowLabel,
+        'row.keys=${row.keys.toList()}',
+        'row=$row',
+        'category=${value(const ['category', 'カテゴリ', 'カテゴリー'])}',
+        'question=$question',
+        'answer=$answerValue',
+        for (var index = 0; index < choices.length; index++)
+          'option${index + 1}=${choices[index]}',
+      ].join('\n'));
+      throw FormatException('$rowLabel:\n${errors.join('\n')}');
     }
     return Question(
       id: id.isEmpty ? fallbackId : id,

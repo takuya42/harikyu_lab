@@ -99,7 +99,7 @@ void main() {
   test('不正な行は行番号、内容、不正項目をdebugPrintする', () async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
-    const csv = 'category,question,choice1,choice2,choice3,choice4,answer\n'
+    const csv = 'category,question,option1,option2,option3,option4,answer\n'
         '基礎,正常な問題,一,二,三,四,1\n'
         '臨床,不正な問題,一,,三,四,9';
     final messages = <String>[];
@@ -117,7 +117,7 @@ void main() {
         throwsA(isA<FormatException>().having(
           (error) => error.message,
           'message',
-          contains('CSV Row 3'),
+          contains("Row 3:\noption2 が空です\nanswer='9' は無効です"),
         )),
       );
     } finally {
@@ -125,10 +125,16 @@ void main() {
     }
 
     expect(messages.single, contains('Row 3'));
+    expect(messages.single, contains(
+      'row.keys=[category, question, option1, option2, option3, option4, answer]',
+    ));
+    expect(messages.single, contains('row={category: 臨床'));
     expect(messages.single, contains('category=臨床'));
     expect(messages.single, contains('question=不正な問題'));
     expect(messages.single, contains('answer=9'));
-    expect(messages.single, contains('choice2'));
-    expect(messages.single, contains('1-4 または A-D が必要'));
+    expect(messages.single, contains('option1=一'));
+    expect(messages.single, contains('option2='));
+    expect(messages.single, contains('option3=三'));
+    expect(messages.single, contains('option4=四'));
   });
 }
