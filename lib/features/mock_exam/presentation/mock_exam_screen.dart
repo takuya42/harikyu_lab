@@ -173,37 +173,13 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
             Text('全問題から重複なく$count問を出題します。\n問題と選択肢の順番は毎回変わります。',
                 textAlign: TextAlign.center),
             const SizedBox(height: 28),
-            LayoutBuilder(builder: (context, constraints) {
-              final cards = [
-                _SettingCard(
-                  label: '問題数',
-                  value: _questionCount,
-                  items: _questionCountOptions,
-                  itemLabel: (value) => value == 0 ? '全問題' : '$value問',
-                  onChanged: _selectQuestionCount,
-                ),
-                _SettingCard(
-                  label: '制限時間',
-                  value: _timeLimitMinutes,
-                  items: _timeLimitOptions,
-                  itemLabel: (value) => value == 0 ? '制限なし' : '$value分',
-                  onChanged: _selectTimeLimit,
-                ),
-              ];
-              if (constraints.maxWidth < 430) {
-                return Column(children: [
-                  cards.first,
-                  const SizedBox(height: 12),
-                  cards.last,
-                ]);
-              }
-              return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(child: cards.first),
-                const SizedBox(width: 16),
-                Expanded(child: cards.last),
-              ]);
-            }),
-            const SizedBox(height: 28),
+            _ExamSettingsCard(
+              questionCount: _questionCount,
+              timeLimitMinutes: _timeLimitMinutes,
+              onQuestionCountChanged: _selectQuestionCount,
+              onTimeLimitChanged: _selectTimeLimit,
+            ),
+            const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: () => _start(createStudySession(
                 questions,
@@ -363,8 +339,74 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
   }
 }
 
-class _SettingCard extends StatelessWidget {
-  const _SettingCard({
+class _ExamSettingsCard extends StatelessWidget {
+  const _ExamSettingsCard({
+    required this.questionCount,
+    required this.timeLimitMinutes,
+    required this.onQuestionCountChanged,
+    required this.onTimeLimitChanged,
+  });
+
+  final int questionCount;
+  final int timeLimitMinutes;
+  final ValueChanged<int?> onQuestionCountChanged;
+  final ValueChanged<int?> onTimeLimitChanged;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '試験設定',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 20),
+            LayoutBuilder(builder: (context, constraints) {
+              final questionCountField = _SettingField(
+                label: '📄 問題数',
+                value: questionCount,
+                items: _questionCountOptions,
+                itemLabel: (value) => value == 0 ? '全問題' : '$value問',
+                onChanged: onQuestionCountChanged,
+              );
+              final timeLimitField = _SettingField(
+                label: '⏱ 制限時間',
+                value: timeLimitMinutes,
+                items: _timeLimitOptions,
+                itemLabel: (value) => value == 0 ? '制限なし' : '$value分',
+                onChanged: onTimeLimitChanged,
+              );
+
+              if (constraints.maxWidth < 480) {
+                return Column(
+                  children: [
+                    questionCountField,
+                    const SizedBox(height: 16),
+                    timeLimitField,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: questionCountField),
+                  const SizedBox(width: 20),
+                  Expanded(child: timeLimitField),
+                ],
+              );
+            }),
+          ],
+        ),
+      );
+}
+
+class _SettingField extends StatelessWidget {
+  const _SettingField({
     required this.label,
     required this.value,
     required this.items,
@@ -379,33 +421,20 @@ class _SettingCard extends StatelessWidget {
   final ValueChanged<int?> onChanged;
 
   @override
-  Widget build(BuildContext context) => Card.outlined(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: DropdownButtonFormField<int>(
-            initialValue: value,
-            isExpanded: true,
-            alignment: Alignment.center,
-            decoration: InputDecoration(
-              labelText: label,
-              border: const OutlineInputBorder(),
-            ),
-            items: [
-              for (final item in items)
-                DropdownMenuItem(
-                  value: item,
-                  alignment: Alignment.center,
-                  child: Text(itemLabel(item), textAlign: TextAlign.center),
-                ),
-            ],
-            selectedItemBuilder: (context) => [
-              for (final item in items)
-                Center(child: Text(itemLabel(item), textAlign: TextAlign.center)),
-            ],
-            onChanged: onChanged,
+  Widget build(BuildContext context) => DropdownButtonFormField<int>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
+        items: [
+          for (final item in items)
+            DropdownMenuItem(value: item, child: Text(itemLabel(item))),
+        ],
+        onChanged: onChanged,
       );
 }
 
