@@ -379,7 +379,7 @@ class _SettingCard extends StatelessWidget {
   final ValueChanged<int?> onChanged;
 
   @override
-  Widget build(BuildContext context) => OutlinedCard(
+  Widget build(BuildContext context) => Card.outlined(
         margin: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.all(16),
