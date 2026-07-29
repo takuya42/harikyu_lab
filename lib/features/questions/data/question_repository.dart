@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:http/http.dart' as http;
@@ -101,16 +102,51 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
     if (table.isEmpty) return const [];
     final headers = table.first.map((value) => value.trim()).toList();
     if (headers.isNotEmpty) headers[0] = headers[0].replaceFirst('\ufeff', '');
-    return table
-        .skip(1)
-        .where((row) => row.any((cell) => cell.trim().isNotEmpty))
-        .map((row) {
+    final questions = <Question>[];
+    for (var index = 1; index < table.length; index++) {
+      final row = table[index];
+      if (!row.any((cell) => cell.trim().isNotEmpty)) continue;
       final values = <String, String>{};
-      for (var index = 0; index < headers.length; index++) {
-        values[headers[index]] = index < row.length ? row[index].trim() : '';
+      for (var column = 0; column < headers.length; column++) {
+        values[headers[column]] =
+            column < row.length ? row[column].trim() : '';
       }
-      return Question.fromSheetRow(values);
-    }).toList();
+      final rowNumber = index + 1;
+      try {
+        questions.add(Question.fromSheetRow(
+          values,
+          fallbackId: 'row_$rowNumber',
+        ));
+      } on FormatException catch (error) {
+        final category = values['category'] ??
+            values['カテゴリ'] ??
+            values['カテゴリー'] ??
+            '';
+        final question = values['question'] ??
+            values['text'] ??
+            values['問題'] ??
+            values['問題文'] ??
+            '';
+        final answer = values['answer'] ??
+            values['correctAnswer'] ??
+            values['correct_answer'] ??
+            values['正解'] ??
+            values['正解番号'] ??
+            '';
+        debugPrint([
+          'Invalid question CSV row:',
+          'Row $rowNumber',
+          'headers=${headers.join(',')}',
+          'category=$category',
+          'question=$question',
+          'answer=$answer',
+          'values=$values',
+          'error=${error.message}',
+        ].join('\n'));
+        throw FormatException('CSV Row $rowNumber: ${error.message}');
+      }
+    }
+    return questions;
   }
 
   List<List<String>> _csvRows(String source) {
