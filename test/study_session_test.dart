@@ -20,4 +20,25 @@ void main() {
       expect(item.choices[item.correctAnswerIndex], originalCorrect);
     }
   });
+
+  test('指定した問題数を重複なく抽出する', () {
+    final questions = List.generate(
+      200,
+      (index) => Question(
+        id: '$index',
+        text: '問題$index',
+        choices: const ['1', '2', '3', '4'],
+        correctAnswerIndex: 0,
+      ),
+    );
+
+    final session = createStudySession(
+      questions,
+      random: Random(1),
+      questionCount: 100,
+    );
+
+    expect(session, hasLength(100));
+    expect(session.map((item) => item.question.id).toSet(), hasLength(100));
+  });
 }

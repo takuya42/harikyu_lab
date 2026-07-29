@@ -18,11 +18,16 @@ class StudyQuestion {
 List<StudyQuestion> createStudySession(
   List<Question> questions, {
   Random? random,
+  int? questionCount,
 }) {
   final generator = random ?? Random();
   final shuffledQuestions = List<Question>.of(questions)..shuffle(generator);
 
-  return List.unmodifiable(shuffledQuestions.map((question) {
+  final selectedQuestions = questionCount == null
+      ? shuffledQuestions
+      : shuffledQuestions.take(questionCount).toList();
+
+  return List.unmodifiable(selectedQuestions.map((question) {
     final indexedChoices = [
       for (var index = 0; index < question.choices.length; index++)
         (index: index, text: question.choices[index]),
