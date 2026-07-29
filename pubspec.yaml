@@ -21,6 +21,9 @@ dependencies:
   json_annotation: ^4.9.0
   http: ^1.0.0
   shared_preferences: ^2.5.4
+  url_launcher: ^6.3.2
+  package_info_plus: ^9.0.0
+  device_info_plus: ^12.3.0
 
 dev_dependencies:
   flutter_test:
