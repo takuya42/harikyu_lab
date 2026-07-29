@@ -91,7 +91,7 @@ class _Stats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stats = [
-      ('今日', '${statistics.todayStudyMinutes}分', Icons.schedule_outlined),
+      ('総回答数', '${statistics.totalAnswered}問', Icons.schedule_outlined),
       ('連続', '${statistics.streakDays}日', Icons.local_fire_department_outlined),
       ('正答率', '${statistics.accuracy}%', Icons.check_circle_outline),
     ];
