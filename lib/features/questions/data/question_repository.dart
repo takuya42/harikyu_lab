@@ -101,16 +101,23 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
     if (table.isEmpty) return const [];
     final headers = table.first.map((value) => value.trim()).toList();
     if (headers.isNotEmpty) headers[0] = headers[0].replaceFirst('\ufeff', '');
-    return table
-        .skip(1)
-        .where((row) => row.any((cell) => cell.trim().isNotEmpty))
-        .map((row) {
+    final questions = <Question>[];
+    for (var index = 1; index < table.length; index++) {
+      final row = table[index];
+      if (!row.any((cell) => cell.trim().isNotEmpty)) continue;
       final values = <String, String>{};
-      for (var index = 0; index < headers.length; index++) {
-        values[headers[index]] = index < row.length ? row[index].trim() : '';
+      for (var column = 0; column < headers.length; column++) {
+        values[headers[column]] =
+            column < row.length ? row[column].trim() : '';
       }
-      return Question.fromSheetRow(values);
-    }).toList();
+      final rowNumber = index + 1;
+      questions.add(Question.fromSheetRow(
+        values,
+        fallbackId: 'row_$rowNumber',
+        rowNumber: rowNumber,
+      ));
+    }
+    return questions;
   }
 
   List<List<String>> _csvRows(String source) {

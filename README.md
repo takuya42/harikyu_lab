@@ -6,17 +6,19 @@
 
 ### 1. 問題シートを作成する
 
-1 行目に、次の列名を**表記どおり**設定してください。
+1 行目に、次の列名を設定してください。
 
-| id | question | choice1 | choice2 | choice3 | choice4 | correctAnswer | explanation | category |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| q001 | 十二経脈のうち、手の太陰経はどれか。 | 心包経 | 肺経 | 腎経 | 胃経 | 2 | 手の太陰経は肺経です。 | 経絡経穴概論 |
+| id | subject | category | question | choice1 | choice2 | choice3 | choice4 | answer | explanation | image |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| q001 | 経絡経穴概論 | 基礎 | 十二経脈のうち、手の太陰経はどれか。 | 心包経 | 肺経 | 腎経 | 胃経 | 2 | 手の太陰経は肺経です。 | https://example.com/image.png |
 
-- `id`、`question`、`choice1`〜`choice4`、`correctAnswer` は必須です。
+- `id`、`question`、`choice1`〜`choice4`、`answer` は必須です。ただし、CSV リポジトリ経由では `id` が空の場合に行番号から ID を補完します。
 - `id` は問題ごとに重複しない値にしてください。
-- `correctAnswer` は正解の選択肢番号を `1`〜`4` で指定します（0 始まりではありません）。
-- `explanation` と `category` は省略できます。
+- `answer` は正解の選択肢番号 `1`〜`4`（半角・全角）または `A`〜`D` で指定します（0 始まりではありません）。`correctAnswer` も利用できます。
+- `subject`、`category`、`explanation`、`image` は省略できます。
+- 模擬試験 CSV では、`問題文`、`選択肢1`〜`選択肢4`、`正解`、`解説`、`カテゴリ`、`科目`、`画像` という日本語ヘッダーも利用できます。`option1`〜`option4` や snake_case のヘッダーにも対応しています。
 - セル内のカンマ、改行、ダブルクォートを含む標準的な CSV も読み込めます。
+- 不正な行がある場合は、CSV 上の行番号、ヘッダー、`category`、`question`、`answer`、行の全値、および不足・不正項目をデバッグログへ出力します。
 
 ### 2. CSV として公開する
 
