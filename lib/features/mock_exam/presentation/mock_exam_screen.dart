@@ -7,9 +7,12 @@ import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Change this value (for example to 50 or 200) to alter the exam length.
-const mockExamQuestionCount = 100;
+const _questionCountPreferenceKey = 'mock_exam_question_count';
+const _timeLimitPreferenceKey = 'mock_exam_time_limit_minutes';
+const _questionCountOptions = [20, 50, 100, 0];
+const _timeLimitOptions = [0, 20, 40, 60, 90];
 
 class MockExamScreen extends ConsumerStatefulWidget {
   const MockExamScreen({super.key});
@@ -28,6 +31,44 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
   int? _selectedAnswer;
   int _correctCount = 0;
   bool _finished = false;
+  int _questionCount = 20;
+  int _timeLimitMinutes = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSettings();
+  }
+
+  Future<void> _restoreSettings() async {
+    final preferences = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      final savedQuestionCount =
+          preferences.getInt(_questionCountPreferenceKey);
+      final savedTimeLimit = preferences.getInt(_timeLimitPreferenceKey);
+      if (_questionCountOptions.contains(savedQuestionCount)) {
+        _questionCount = savedQuestionCount!;
+      }
+      if (_timeLimitOptions.contains(savedTimeLimit)) {
+        _timeLimitMinutes = savedTimeLimit!;
+      }
+    });
+  }
+
+  Future<void> _selectQuestionCount(int? value) async {
+    if (value == null) return;
+    setState(() => _questionCount = value);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setInt(_questionCountPreferenceKey, value);
+  }
+
+  Future<void> _selectTimeLimit(int? value) async {
+    if (value == null) return;
+    setState(() => _timeLimitMinutes = value);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setInt(_timeLimitPreferenceKey, value);
+  }
 
   @override
   void dispose() {
@@ -42,7 +83,15 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
       ..reset()
       ..start();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      if (_timeLimitMinutes > 0 &&
+          _stopwatch.elapsed >= Duration(minutes: _timeLimitMinutes)) {
+        _stopwatch.stop();
+        _timer?.cancel();
+        setState(() => _finished = true);
+      } else {
+        setState(() {});
+      }
     });
     setState(() {
       _session = questions;
@@ -103,9 +152,12 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
         data: (questions) {
           if (questions.isEmpty) return _loadError('問題がありません。');
           _availableQuestions = questions;
-          final count = questions.length < mockExamQuestionCount
+          final requestedCount = _questionCount == 0
               ? questions.length
-              : mockExamQuestionCount;
+              : _questionCount;
+          final count = questions.length < requestedCount
+              ? questions.length
+              : requestedCount;
           return ListView(children: [
             const SizedBox(height: 32),
             Icon(Icons.timer_rounded,
@@ -120,11 +172,42 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
             const SizedBox(height: 12),
             Text('全問題から重複なく$count問を出題します。\n問題と選択肢の順番は毎回変わります。',
                 textAlign: TextAlign.center),
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
+            LayoutBuilder(builder: (context, constraints) {
+              final cards = [
+                _SettingCard(
+                  label: '問題数',
+                  value: _questionCount,
+                  items: _questionCountOptions,
+                  itemLabel: (value) => value == 0 ? '全問題' : '$value問',
+                  onChanged: _selectQuestionCount,
+                ),
+                _SettingCard(
+                  label: '制限時間',
+                  value: _timeLimitMinutes,
+                  items: _timeLimitOptions,
+                  itemLabel: (value) => value == 0 ? '制限なし' : '$value分',
+                  onChanged: _selectTimeLimit,
+                ),
+              ];
+              if (constraints.maxWidth < 430) {
+                return Column(children: [
+                  cards.first,
+                  const SizedBox(height: 12),
+                  cards.last,
+                ]);
+              }
+              return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: cards.first),
+                const SizedBox(width: 16),
+                Expanded(child: cards.last),
+              ]);
+            }),
+            const SizedBox(height: 28),
             FilledButton.icon(
               onPressed: () => _start(createStudySession(
                 questions,
-                questionCount: mockExamQuestionCount,
+                questionCount: requestedCount,
               )),
               icon: const Icon(Icons.play_arrow_rounded),
               label: const Text('試験を始める'),
@@ -269,13 +352,61 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
       FilledButton.icon(
         onPressed: () => _start(createStudySession(
           _availableQuestions!,
-          questionCount: mockExamQuestionCount,
+          questionCount: _questionCount == 0
+              ? _availableQuestions!.length
+              : _questionCount,
         )),
         icon: const Icon(Icons.replay_rounded),
         label: const Text('もう一度挑戦'),
       ),
     ]);
   }
+}
+
+class _SettingCard extends StatelessWidget {
+  const _SettingCard({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.itemLabel,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int value;
+  final List<int> items;
+  final String Function(int value) itemLabel;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context) => OutlinedCard(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: DropdownButtonFormField<int>(
+            initialValue: value,
+            isExpanded: true,
+            alignment: Alignment.center,
+            decoration: InputDecoration(
+              labelText: label,
+              border: const OutlineInputBorder(),
+            ),
+            items: [
+              for (final item in items)
+                DropdownMenuItem(
+                  value: item,
+                  alignment: Alignment.center,
+                  child: Text(itemLabel(item), textAlign: TextAlign.center),
+                ),
+            ],
+            selectedItemBuilder: (context) => [
+              for (final item in items)
+                Center(child: Text(itemLabel(item), textAlign: TextAlign.center)),
+            ],
+            onChanged: onChanged,
+          ),
+        ),
+      );
 }
 
 class _ResultRow extends StatelessWidget {
