@@ -12,6 +12,12 @@ const googleSheetsCsvUrl = String.fromEnvironment(
       'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSyFXi-NgrS9YokHo5i183yOzt-c-7L00tR4qN4plO-ezWOcn_dpgrxgFXGXhGjILIMuJ0h0qViTCB/pub?output=csv',
 );
 
+const mockExamGoogleSheetsCsvUrl = String.fromEnvironment(
+  'MOCK_EXAM_SHEET_CSV_URL',
+  defaultValue:
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vToUSFPQQ_mswZBqNCIQd7TunBKimDs2IQx2SU8t0pfB3CnJzSkeYvRKM5P9t87TOpvhCUu1h-oYnEE/pub?output=csv',
+);
+
 abstract interface class QuestionRepository {
   /// Emits the local cache first, then the latest spreadsheet contents.
   Stream<List<Question>> watchQuestions();
@@ -25,14 +31,16 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
     required http.Client client,
     required SharedPreferences preferences,
     required String sheetUrl,
+    String cacheKey = 'questions_cache_v1',
   })  : _client = client,
         _preferences = preferences,
-        _sheetUrl = sheetUrl;
+        _sheetUrl = sheetUrl,
+        _cacheKey = cacheKey;
 
-  static const _cacheKey = 'questions_cache_v1';
   final http.Client _client;
   final SharedPreferences _preferences;
   final String _sheetUrl;
+  final String _cacheKey;
 
   @override
   Stream<List<Question>> watchQuestions() async* {
@@ -164,6 +172,20 @@ final questionRepositoryProvider = FutureProvider<QuestionRepository>(
 
 final questionsProvider = StreamProvider<List<Question>>((ref) async* {
   final repository = await ref.watch(questionRepositoryProvider.future);
+  yield* repository.watchQuestions();
+});
+
+final mockExamQuestionRepositoryProvider = FutureProvider<QuestionRepository>(
+  (ref) async => GoogleSheetsQuestionRepository(
+    client: ref.watch(httpClientProvider),
+    preferences: await ref.watch(sharedPreferencesProvider.future),
+    sheetUrl: mockExamGoogleSheetsCsvUrl,
+    cacheKey: 'mock_exam_questions_cache_v1',
+  ),
+);
+
+final mockExamQuestionsProvider = StreamProvider<List<Question>>((ref) async* {
+  final repository = await ref.watch(mockExamQuestionRepositoryProvider.future);
   yield* repository.watchQuestions();
 });
 
