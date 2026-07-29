@@ -7,4 +7,7 @@ abstract final class AppConstants {
   static const pageMaxWidth = 1100.0;
   static const fastAnimation = Duration(milliseconds: 220);
   static const standardAnimation = Duration(milliseconds: 280);
+  static const termsUrl = 'https://harikyu-lab.web.app/terms';
+  static const privacyPolicyUrl = 'https://harikyu-lab.web.app/privacy';
+  static const supportEmail = 'support@harikyu-lab.com';
 }
