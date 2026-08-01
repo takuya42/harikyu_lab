@@ -80,8 +80,12 @@ void main() {
     await tester.tap(find.text('模試'));
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(Icons.quiz_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.assignment_outlined), findsOneWidget);
     expect(find.byIcon(Icons.timer_outlined), findsWidgets);
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.assignment_outlined)).size,
+      20,
+    );
     expect(find.text('📄 問題数'), findsNothing);
     expect(find.text('⏱ 制限時間'), findsNothing);
     expect(

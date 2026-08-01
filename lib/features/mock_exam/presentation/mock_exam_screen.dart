@@ -368,7 +368,7 @@ class _ExamSettingsCard extends StatelessWidget {
             const SizedBox(height: 20),
             LayoutBuilder(builder: (context, _) {
               final questionCountField = _SettingField(
-                icon: Icons.quiz_outlined,
+                icon: Icons.assignment_outlined,
                 label: '問題数',
                 value: questionCount,
                 items: _questionCountOptions,
@@ -430,7 +430,7 @@ class _SettingField extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 22),
+              Icon(icon, size: 20),
               const SizedBox(width: 8),
               Text(
                 label,
