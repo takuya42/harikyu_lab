@@ -1,9 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
+import 'package:harikyu_lab/features/mock_exam/application/exam_timer_controller.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
@@ -21,15 +20,16 @@ class MockExamScreen extends ConsumerStatefulWidget {
   ConsumerState<MockExamScreen> createState() => _MockExamScreenState();
 }
 
-class _MockExamScreenState extends ConsumerState<MockExamScreen> {
+class _MockExamScreenState extends ConsumerState<MockExamScreen>
+    with WidgetsBindingObserver {
   List<StudyQuestion>? _session;
   List<Question>? _availableQuestions;
   final List<StudyQuestion> _incorrectQuestions = [];
-  final Stopwatch _stopwatch = Stopwatch();
-  Timer? _timer;
+  ProviderSubscription<ExamTimerState>? _timerSubscription;
   int _index = 0;
   int? _selectedAnswer;
   int _correctCount = 0;
+  int _answeredCount = 0;
   bool _finished = false;
   int _questionCount = 20;
   int _timeLimitMinutes = 0;
@@ -37,7 +37,18 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _timerSubscription = ref.listenManual(examTimerProvider, (previous, next) {
+      if (next.isTimeUp && previous?.isTimeUp != true) _finishExam();
+    });
     _restoreSettings();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed && _session != null && !_finished) {
+      ref.read(examTimerProvider.notifier).pause();
+    }
   }
 
   Future<void> _restoreSettings() async {
@@ -72,41 +83,31 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _stopwatch.stop();
+    WidgetsBinding.instance.removeObserver(this);
+    _timerSubscription?.close();
     super.dispose();
   }
 
   void _start(List<StudyQuestion> questions) {
-    _timer?.cancel();
-    _stopwatch
-      ..reset()
-      ..start();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      if (_timeLimitMinutes > 0 &&
-          _stopwatch.elapsed >= Duration(minutes: _timeLimitMinutes)) {
-        _stopwatch.stop();
-        _timer?.cancel();
-        setState(() => _finished = true);
-      } else {
-        setState(() {});
-      }
-    });
+    ref
+        .read(examTimerProvider.notifier)
+        .start(Duration(minutes: _timeLimitMinutes));
     setState(() {
       _session = questions;
       _incorrectQuestions.clear();
       _index = 0;
       _selectedAnswer = null;
       _correctCount = 0;
+      _answeredCount = 0;
       _finished = false;
     });
   }
 
   void _answer(int answer, StudyQuestion question) {
-    if (_selectedAnswer != null) return;
+    if (_selectedAnswer != null || ref.read(examTimerProvider).isPaused) return;
     setState(() {
       _selectedAnswer = answer;
+      _answeredCount++;
       if (answer == question.correctAnswerIndex) {
         _correctCount++;
       } else {
@@ -117,9 +118,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
 
   void _next() {
     if (_index + 1 == _session!.length) {
-      _stopwatch.stop();
-      _timer?.cancel();
-      setState(() => _finished = true);
+      _finishExam();
       return;
     }
     setState(() {
@@ -128,8 +127,20 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
     });
   }
 
-  String get _elapsed {
-    final duration = _stopwatch.elapsed;
+  void _finishExam() {
+    if (!mounted || _finished || _session == null) return;
+    ref.read(examTimerProvider.notifier).stop();
+    final alreadyIncorrect = _incorrectQuestions.toSet();
+    for (var i = 0; i < _session!.length; i++) {
+      final wasAnswered = i < _index || (i == _index && _selectedAnswer != null);
+      if (!wasAnswered && alreadyIncorrect.add(_session![i])) {
+        _incorrectQuestions.add(_session![i]);
+      }
+    }
+    setState(() => _finished = true);
+  }
+
+  String _formatDuration(Duration duration) {
     final hours = duration.inHours;
     final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -137,14 +148,20 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => AppPage(
-        title: '模擬試験',
-        child: _finished
+  Widget build(BuildContext context) {
+    final timer = ref.watch(examTimerProvider);
+    return AppPage(
+      title: '模擬試験',
+      child: Stack(children: [
+        _finished
             ? _result()
             : _session == null
                 ? _introduction()
-                : _question(),
-      );
+                : _question(timer),
+        if (timer.isPaused && !_finished) _pauseOverlay(),
+      ]),
+    );
+  }
 
   Widget _introduction() => ref.watch(mockExamQuestionsProvider).when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -207,7 +224,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
         ]),
       );
 
-  Widget _question() {
+  Widget _question(ExamTimerState timer) {
     final item = _session![_index];
     return ListView(key: ValueKey(item.question.id), children: [
       Row(children: [
@@ -217,9 +234,18 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
                   color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.w700)),
         ),
+        IconButton(
+          key: const ValueKey('pause-exam'),
+          tooltip: '一時停止',
+          visualDensity: VisualDensity.compact,
+          onPressed: () => ref.read(examTimerProvider.notifier).pause(),
+          icon: const Icon(Icons.pause_rounded),
+        ),
         const Icon(Icons.schedule_rounded, size: 18),
         const SizedBox(width: 4),
-        Text(_elapsed),
+        Text(_formatDuration(timer.hasTimeLimit
+            ? Duration(seconds: (timer.remaining.inMilliseconds / 1000).ceil())
+            : timer.elapsed)),
       ]),
       const SizedBox(height: 20),
       Text(item.question.text,
@@ -270,8 +296,39 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
     ]);
   }
 
+  Widget _pauseOverlay() => Positioned.fill(
+        child: ColoredBox(
+          color: Colors.black54,
+          child: Center(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text(
+                    '試験を一時停止中',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    key: const ValueKey('resume-exam'),
+                    onPressed: () =>
+                        ref.read(examTimerProvider.notifier).resume(),
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('再開'),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      );
+
   Widget _result() {
     final total = _session!.length;
+    final unanswered = total - _answeredCount;
     final accuracy = total == 0 ? 0 : (_correctCount * 100 / total).round();
     return ListView(key: const ValueKey('mock-exam-result'), children: [
       const SizedBox(height: 24),
@@ -293,11 +350,16 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen> {
           const Divider(),
           _ResultRow(label: '正答率', value: '$accuracy%'),
           const Divider(),
-          _ResultRow(label: '回答時間', value: _elapsed),
+          _ResultRow(
+            label: '回答時間',
+            value: _formatDuration(ref.read(examTimerProvider).elapsed),
+          ),
+          const Divider(),
+          _ResultRow(label: '未回答数', value: '$unanswered問'),
         ]),
       ),
       const SizedBox(height: 24),
-      Text('間違えた問題',
+      Text('間違えた問題一覧',
           style: Theme.of(context)
               .textTheme
               .titleLarge
