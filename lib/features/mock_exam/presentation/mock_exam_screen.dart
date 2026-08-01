@@ -366,23 +366,25 @@ class _ExamSettingsCard extends StatelessWidget {
                   ?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 20),
-            LayoutBuilder(builder: (context, constraints) {
+            LayoutBuilder(builder: (context, _) {
               final questionCountField = _SettingField(
-                label: '📄 問題数',
+                icon: Icons.quiz_outlined,
+                label: '問題数',
                 value: questionCount,
                 items: _questionCountOptions,
                 itemLabel: (value) => value == 0 ? '全問題' : '$value問',
                 onChanged: onQuestionCountChanged,
               );
               final timeLimitField = _SettingField(
-                label: '⏱ 制限時間',
+                icon: Icons.timer_outlined,
+                label: '制限時間',
                 value: timeLimitMinutes,
                 items: _timeLimitOptions,
                 itemLabel: (value) => value == 0 ? '制限なし' : '$value分',
                 onChanged: onTimeLimitChanged,
               );
 
-              if (constraints.maxWidth < 480) {
+              if (MediaQuery.sizeOf(context).width < 400) {
                 return Column(
                   children: [
                     questionCountField,
@@ -395,7 +397,7 @@ class _ExamSettingsCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(child: questionCountField),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 16),
                   Expanded(child: timeLimitField),
                 ],
               );
@@ -407,6 +409,7 @@ class _ExamSettingsCard extends StatelessWidget {
 
 class _SettingField extends StatelessWidget {
   const _SettingField({
+    required this.icon,
     required this.label,
     required this.value,
     required this.items,
@@ -414,6 +417,7 @@ class _SettingField extends StatelessWidget {
     required this.onChanged,
   });
 
+  final IconData icon;
   final String label;
   final int value;
   final List<int> items;
@@ -421,20 +425,42 @@ class _SettingField extends StatelessWidget {
   final ValueChanged<int?> onChanged;
 
   @override
-  Widget build(BuildContext context) => DropdownButtonFormField<int>(
-        initialValue: value,
-        isExpanded: true,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
           ),
-        ),
-        items: [
-          for (final item in items)
-            DropdownMenuItem(value: item, child: Text(itemLabel(item))),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 52,
+            child: DropdownButtonFormField<int>(
+              initialValue: value,
+              isExpanded: true,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              items: [
+                for (final item in items)
+                  DropdownMenuItem(value: item, child: Text(itemLabel(item))),
+              ],
+              onChanged: onChanged,
+            ),
+          ),
         ],
-        onChanged: onChanged,
       );
 }
 

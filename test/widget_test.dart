@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harikyu_lab/app/app.dart';
@@ -16,6 +17,8 @@ const _questions = [
 ProviderScope testApp() => ProviderScope(
       overrides: [
         questionsProvider.overrideWith((ref) => Stream.value(_questions)),
+        mockExamQuestionsProvider
+            .overrideWith((ref) => Stream.value(_questions)),
       ],
       child: const HarikyuLabApp(),
     );
@@ -63,6 +66,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.text('今日も、一歩ずつ。'), findsOneWidget);
+  });
+
+  testWidgets('試験設定が画面幅に応じて横並びと縦並びに切り替わる', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(420, 900);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(testApp());
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('模試'));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.quiz_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.timer_outlined), findsWidgets);
+    expect(find.text('📄 問題数'), findsNothing);
+    expect(find.text('⏱ 制限時間'), findsNothing);
+    expect(
+      tester.getCenter(find.text('問題数')).dy,
+      tester.getCenter(find.text('制限時間')).dy,
+    );
+    final dropdowns = find.byType(DropdownButtonFormField<int>);
+    expect(dropdowns, findsNWidgets(2));
+    for (var index = 0; index < 2; index++) {
+      expect(tester.getSize(dropdowns.at(index)).height, 52);
+    }
+
+    tester.view.physicalSize = const Size(390, 900);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getCenter(find.text('問題数')).dy,
+      lessThan(tester.getCenter(find.text('制限時間')).dy),
+    );
   });
 
   testWidgets('回答結果がホームの学習データへ反映される', (tester) async {
