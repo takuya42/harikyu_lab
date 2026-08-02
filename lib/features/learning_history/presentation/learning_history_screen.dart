@@ -104,11 +104,21 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
   Future<void> _showGoalSettings(int selectedGoal) async {
     final selected = await showModalBottomSheet<int>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => _GoalSheet(selectedGoal: selectedGoal),
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: _GoalSheet(selectedGoal: selectedGoal),
+          ),
+        ),
+      ),
     );
     if (selected == null || !mounted) return;
     try {

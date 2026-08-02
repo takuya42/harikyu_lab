@@ -49,6 +49,25 @@ void main() {
     expect(find.text('アカウント'), findsOneWidget);
   });
 
+  testWidgets('小さな画面でも学習目標シートがオーバーフローしない', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 568);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(testApp());
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('カレンダー'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('学習目標を設定'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('学習目標'), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('シェル内の画面遷移でGlobalKeyが重複しない', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pump(const Duration(milliseconds: 900));
