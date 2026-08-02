@@ -68,6 +68,50 @@ void main() {
     expect(find.text('テスト問題'), findsOneWidget);
   });
 
+  testWidgets('開発用10秒タイマーが一時停止・再開後に未回答を採点する',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'mock_exam_question_count': 20,
+      'mock_exam_time_limit_minutes': 10,
+    });
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          mockExamQuestionsProvider
+              .overrideWith((ref) => Stream.value(_questions)),
+        ],
+        child: const MaterialApp(home: MockExamScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('10秒（開発用）'), findsOneWidget);
+    await tester.tap(find.text('試験を始める'));
+    await tester.pump();
+    expect(find.text('00:10'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('00:09'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('pause-exam')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('00:09'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('resume-exam')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('00:08'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 8));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('mock-exam-result')), findsOneWidget);
+    expect(find.text('0問'), findsOneWidget);
+    expect(find.text('1問'), findsNWidgets(2));
+    expect(find.text('0%'), findsOneWidget);
+    expect(find.text('00:10'), findsOneWidget);
+    expect(find.text('テスト問題'), findsOneWidget);
+  });
+
   testWidgets('バックグラウンド移行で一時停止する', (tester) async {
     await tester.pumpWidget(
       ProviderScope(

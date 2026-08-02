@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
@@ -11,7 +12,28 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _questionCountPreferenceKey = 'mock_exam_question_count';
 const _timeLimitPreferenceKey = 'mock_exam_time_limit_minutes';
 const _questionCountOptions = [20, 50, 100, 0];
-const _timeLimitOptions = [0, 20, 40, 60, 90];
+// `10` represents the debug-only 10-second limit. The regular values are
+// minutes, preserving the existing preference format so this option can be
+// removed without a settings migration before release.
+const _debugTimeLimitValue = 10;
+const _timeLimitOptions = [
+  if (kDebugMode) _debugTimeLimitValue,
+  0,
+  20,
+  40,
+  60,
+  90,
+];
+
+Duration _timeLimitDuration(int value) =>
+    value == _debugTimeLimitValue && kDebugMode
+        ? const Duration(seconds: 10)
+        : Duration(minutes: value);
+
+String _timeLimitLabel(int value) {
+  if (value == _debugTimeLimitValue && kDebugMode) return '10秒（開発用）';
+  return value == 0 ? '制限なし' : '$value分';
+}
 
 class MockExamScreen extends ConsumerStatefulWidget {
   const MockExamScreen({super.key});
@@ -91,7 +113,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
   void _start(List<StudyQuestion> questions) {
     ref
         .read(examTimerProvider.notifier)
-        .start(Duration(minutes: _timeLimitMinutes));
+        .start(_timeLimitDuration(_timeLimitMinutes));
     setState(() {
       _session = questions;
       _incorrectQuestions.clear();
@@ -442,7 +464,7 @@ class _ExamSettingsCard extends StatelessWidget {
                 label: '制限時間',
                 value: timeLimitMinutes,
                 items: _timeLimitOptions,
-                itemLabel: (value) => value == 0 ? '制限なし' : '$value分',
+                itemLabel: _timeLimitLabel,
                 onChanged: onTimeLimitChanged,
               );
 
