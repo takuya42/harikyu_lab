@@ -6,8 +6,21 @@ import 'package:harikyu_lab/features/learning_history/presentation/learning_hist
 
 void main() {
   test('Firestore document ID uses yyyy-MM-dd', () {
+    expect(studyCalendarCollection, 'study_calendar');
     expect(studyDateKey(DateTime(2026, 8, 2, 23, 59)), '2026-08-02');
     expect(studyDateKey(DateTime(2026, 12, 31)), '2026-12-31');
+  });
+
+  test('保存日と取得日のyyyy-MM-dd形式が一致する', () {
+    final key = studyDateKey(DateTime(2026, 8, 2));
+    final item = StudyCalendarDay.fromMap(key, {
+      'date': key,
+      'answeredCount': 1,
+    });
+
+    expect(studyDateKey(item.date), key);
+    expect(item.answeredCount, 1);
+    expect(calculateStudyStreak([item], today: DateTime(2026, 8, 2)), 1);
   });
 
   test('Firestoreエラーは種別とpermission-deniedを表示できる', () {
