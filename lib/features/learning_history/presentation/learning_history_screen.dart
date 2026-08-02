@@ -102,18 +102,33 @@ class _StreakCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           child: Column(children: [
-            Text('🔥 連続学習日数', style: Theme.of(context).textTheme.titleMedium),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.local_fire_department_rounded),
+              const SizedBox(width: 8),
+              Text('連続学習日数', style: Theme.of(context).textTheme.titleMedium),
+            ]),
             const SizedBox(height: 8),
             TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: days.toDouble()),
               duration: const Duration(milliseconds: 800),
               curve: Curves.easeOutCubic,
-              builder: (_, value, __) => Text(
-                '🔥 ${value.round()}日連続',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFFF0783C),
-                    ),
+              builder: (_, value, __) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.local_fire_department_rounded,
+                    color: Color(0xFFF0783C),
+                    size: 36,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${value.round()}日連続',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFFF0783C),
+                        ),
+                  ),
+                ],
               ),
             ),
           ]),
@@ -247,17 +262,18 @@ class _SummaryGrid extends StatelessWidget {
       mainAxisSpacing: 12,
       childAspectRatio: 1.5,
       children: [
-        _SummaryCard(label: '📚 総回答数', value: answers, suffix: '問'),
-        _SummaryCard(label: '🎯 正答率', value: answers == 0 ? 0 : (correct * 100 / answers).round(), suffix: '%'),
-        _SummaryCard(label: '⏱ 学習時間', value: minutes, suffix: '分'),
-        _SummaryCard(label: '🏆 模擬試験受験回数', value: exams, suffix: '回'),
+        _SummaryCard(icon: Icon(Icons.menu_book_rounded), label: '総回答数', value: answers, suffix: '問'),
+        _SummaryCard(icon: Icon(Icons.track_changes_rounded), label: '正答率', value: answers == 0 ? 0 : (correct * 100 / answers).round(), suffix: '%'),
+        _SummaryCard(icon: Icon(Icons.schedule_rounded), label: '学習時間', value: minutes, suffix: '分'),
+        _SummaryCard(icon: Icon(Icons.local_fire_department_rounded), label: '模擬試験受験回数', value: exams, suffix: '回'),
       ],
     );
   }
 }
 
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.label, required this.value, required this.suffix});
+  const _SummaryCard({required this.icon, required this.label, required this.value, required this.suffix});
+  final Widget icon;
   final String label;
   final int value;
   final String suffix;
@@ -269,7 +285,11 @@ class _SummaryCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text(label, maxLines: 1, style: Theme.of(context).textTheme.labelLarge),
+            Row(children: [
+              IconTheme(data: const IconThemeData(size: 20), child: icon),
+              const SizedBox(width: 6),
+              Expanded(child: Text(label, maxLines: 1, style: Theme.of(context).textTheme.labelLarge)),
+            ]),
             const SizedBox(height: 8),
             TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: value.toDouble()),
