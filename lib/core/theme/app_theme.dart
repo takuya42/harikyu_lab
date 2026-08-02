@@ -38,6 +38,20 @@ abstract final class AppTheme {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.controlRadius)),
       textStyle: const TextStyle(fontWeight: FontWeight.w700),
     )),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color(0xFFF9FAFD),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFFDDE1EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF5A6DBA), width: 2),
+      ),
+    ),
     dividerTheme: const DividerThemeData(color: Color(0xFFE9EDF3), thickness: 1),
     splashFactory: InkSparkle.splashFactory,
     extensions: const [AppSurfaceTheme(

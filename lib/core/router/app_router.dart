@@ -31,8 +31,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/mistakes', builder: (_, _) => const QuestionsScreen(mistakesOnly: true)),
           GoRoute(path: '/history', pageBuilder: (_, state) => _fadeSlidePage(state, const LearningHistoryScreen())),
           GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
-          GoRoute(path: '/login', builder: (_, _) => const AuthScreen(isRegistration: false)),
-          GoRoute(path: '/register', builder: (_, _) => const AuthScreen(isRegistration: true)),
+          GoRoute(path: '/login', pageBuilder: (_, state) => _fadeSlidePage(state, const AuthScreen(isRegistration: false))),
+          GoRoute(path: '/register', pageBuilder: (_, state) => _fadeSlidePage(state, const AuthScreen(isRegistration: true))),
         ],
       ),
     ],
@@ -72,12 +72,13 @@ class _AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showNavigation = _locations.contains(location);
     return Scaffold(
       // ShellRoute owns this child (and the Navigator key inside it). Keeping an
       // outgoing copy in an AnimatedSwitcher temporarily inserts that same
       // GlobalKey into two widget subtrees when the location changes.
       body: child,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: showNavigation ? NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) => context.go(_locations[index]),
         destinations: const [
@@ -87,7 +88,7 @@ class _AppShell extends StatelessWidget {
           NavigationDestination(icon: Icon(Icons.calendar_month_outlined, size: 23), selectedIcon: Icon(Icons.calendar_month_rounded, size: 27), label: 'カレンダー'),
           NavigationDestination(icon: Icon(Icons.settings_outlined, size: 23), selectedIcon: Icon(Icons.settings_rounded, size: 27), label: '設定'),
         ],
-      ),
+      ) : null,
     );
   }
 }
