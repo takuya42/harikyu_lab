@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
@@ -69,10 +70,71 @@ class LocalLearningHistoryRepository implements LearningHistoryRepository {
   void dispose() => _controller.close();
 }
 
+/// Stores completed learning sessions below `users/{uid}/studyDays`.
+///
+/// A session is intentionally kept as a separate document. This makes writes
+/// idempotent and lets the calendar aggregate every kind of learning activity
+/// without losing the detail needed by the day sheet.
+class FirestoreLearningHistoryRepository implements LearningHistoryRepository {
+  FirestoreLearningHistoryRepository(this._firestore, this._userId);
+
+  final FirebaseFirestore _firestore;
+  final String _userId;
+
+  CollectionReference<Map<String, dynamic>> get _sessions => _firestore
+      .collection('users')
+      .doc(_userId)
+      .collection('studyDays');
+
+  @override
+  Stream<List<LearningHistory>> watch() => _sessions
+      .orderBy('completedAt', descending: true)
+      .snapshots()
+      .map((snapshot) => snapshot.docs.map(_fromDocument).toList());
+
+  LearningHistory _fromDocument(
+    QueryDocumentSnapshot<Map<String, dynamic>> document,
+  ) {
+    final data = Map<String, dynamic>.from(document.data());
+    final completedAt = data['completedAt'];
+    data['id'] = document.id;
+    data['completedAt'] = completedAt is Timestamp
+        ? completedAt.toDate().toIso8601String()
+        : completedAt;
+    return LearningHistory.fromJson(data);
+  }
+
+  @override
+  Future<void> save(LearningHistory history) async {
+    final data = history.toJson()..remove('id');
+    data['completedAt'] = Timestamp.fromDate(history.completedAt);
+    data['studyDate'] =
+        '${history.completedAt.year.toString().padLeft(4, '0')}-'
+        '${history.completedAt.month.toString().padLeft(2, '0')}-'
+        '${history.completedAt.day.toString().padLeft(2, '0')}';
+    await _sessions.doc(history.id).set(data);
+  }
+
+  @override
+  Future<void> refresh() async => _sessions.limit(1).get();
+
+  @override
+  void dispose() {}
+}
+
+final firebaseFirestoreProvider = Provider<FirebaseFirestore>(
+  (ref) => FirebaseFirestore.instance,
+);
+
 final learningHistoryRepositoryProvider = FutureProvider<LearningHistoryRepository>((ref) async {
   final preferences = await ref.watch(sharedPreferencesProvider.future);
   final user = await ref.watch(authStateProvider.future);
-  final repository = LocalLearningHistoryRepository(preferences, userId: user?.uid);
+  final LearningHistoryRepository repository = user == null
+      ? LocalLearningHistoryRepository(preferences)
+      : FirestoreLearningHistoryRepository(
+          ref.watch(firebaseFirestoreProvider),
+          user.uid,
+        );
   ref.onDispose(repository.dispose);
   return repository;
 });
