@@ -7,6 +7,8 @@ import 'package:harikyu_lab/features/questions/data/favorite_question_repository
 import 'package:harikyu_lab/features/questions/data/mistake_question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
 import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
+import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
+import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
 
 class QuestionsScreen extends ConsumerStatefulWidget {
   const QuestionsScreen({super.key, this.subject, this.favoritesOnly = false, this.mistakesOnly = false});
@@ -27,6 +29,8 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   int _questionIndex = 0;
   int _correctCount = 0;
   List<StudyQuestion>? _sessionQuestions;
+  final Map<String, int> _answers = {};
+  DateTime? _startedAt;
 
   @override
   void initState() {
@@ -47,6 +51,8 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       _questionIndex = 0;
       _correctCount = 0;
       _selectedAnswer = null;
+      _answers.clear();
+      _startedAt = DateTime.now();
     });
   }
 
@@ -63,6 +69,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     }
     setState(() {
       _selectedAnswer = index;
+      _answers[question.question.id] = index;
       if (isCorrect) _correctCount++;
     });
   }
@@ -71,6 +78,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     if (_questionIndex == questionCount - 1) {
       final repository = await _statisticsRepository;
       await repository.endSession();
+      await _saveHistory();
       if (!mounted) return;
       setState(() => _isFinished = true);
       return;
@@ -79,6 +87,41 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       _questionIndex++;
       _selectedAnswer = null;
     });
+  }
+
+  Future<void> _saveHistory() async {
+    final questions = _sessionQuestions;
+    final startedAt = _startedAt;
+    if (questions == null || startedAt == null) return;
+    final completedAt = DateTime.now();
+    final type = widget.mistakesOnly
+        ? LearningType.weaknessReview
+        : widget.subject != null
+        ? LearningType.category
+        : LearningType.quickQuiz;
+    final history = LearningHistory(
+      id: '${completedAt.microsecondsSinceEpoch}',
+      type: type,
+      completedAt: completedAt,
+      questionCount: questions.length,
+      correctCount: _correctCount,
+      unansweredCount: questions.length - _answers.length,
+      duration: completedAt.difference(startedAt),
+      category: widget.subject ?? '',
+      answers: questions.where((item) => _answers.containsKey(item.question.id)).map((item) {
+        final selected = _answers[item.question.id]!;
+        return HistoryAnswer(
+          question: item.question.text,
+          selectedAnswer: item.choices[selected],
+          correctAnswer: item.choices[item.correctAnswerIndex],
+          explanation: item.question.explanation,
+          isCorrect: selected == item.correctAnswerIndex,
+        );
+      }).toList(),
+    );
+    final historyRepository = await ref.read(learningHistoryRepositoryProvider.future);
+    await historyRepository.save(history);
+    _startedAt = null;
   }
 
   @override
