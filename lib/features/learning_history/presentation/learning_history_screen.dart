@@ -56,7 +56,7 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          _Entrance(child: _StreakCard(days: _streak(items))),
+          _Entrance(child: _StreakCard(days: calculateStudyStreak(items))),
           const SizedBox(height: 16),
           _Entrance(
             delay: 80,
@@ -122,7 +122,8 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
     );
     if (selected == null || !mounted) return;
     try {
-      await ref.read(dailyGoalProvider.notifier).setGoal(selected);
+      final repository = await ref.read(studyCalendarRepositoryProvider.future);
+      await repository.updateDailyGoal(selected);
     } on Object {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -474,11 +475,10 @@ class _ErrorState extends StatelessWidget {
       ]));
 }
 
-int _streak(List<StudyCalendarDay> items) {
+int calculateStudyStreak(List<StudyCalendarDay> items, {DateTime? today}) {
   final days = items.where((item) => item.answeredCount > 0).map((item) => DateTime(item.date.year, item.date.month, item.date.day)).toSet();
-  var cursor = DateTime.now();
+  var cursor = today ?? DateTime.now();
   cursor = DateTime(cursor.year, cursor.month, cursor.day);
-  if (!days.contains(cursor)) cursor = cursor.subtract(const Duration(days: 1));
   var result = 0;
   while (days.contains(cursor)) {
     result++;
