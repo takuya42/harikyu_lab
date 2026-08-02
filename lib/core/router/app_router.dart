@@ -84,7 +84,7 @@ class _AppShell extends StatelessWidget {
           NavigationDestination(icon: Icon(Icons.home_outlined, size: 23), selectedIcon: Icon(Icons.home_rounded, size: 27), label: 'ホーム'),
           NavigationDestination(icon: Icon(Icons.menu_book_outlined, size: 23), selectedIcon: Icon(Icons.menu_book_rounded, size: 27), label: '問題'),
           NavigationDestination(icon: Icon(Icons.timer_outlined, size: 23), selectedIcon: Icon(Icons.timer_rounded, size: 27), label: '模試'),
-          NavigationDestination(icon: Icon(Icons.insights_outlined, size: 23), selectedIcon: Icon(Icons.insights_rounded, size: 27), label: '履歴'),
+          NavigationDestination(icon: Icon(Icons.calendar_month_outlined, size: 23), selectedIcon: Icon(Icons.calendar_month_rounded, size: 27), label: 'カレンダー'),
           NavigationDestination(icon: Icon(Icons.settings_outlined, size: 23), selectedIcon: Icon(Icons.settings_rounded, size: 27), label: '設定'),
         ],
       ),
