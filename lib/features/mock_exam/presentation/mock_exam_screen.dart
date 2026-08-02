@@ -333,17 +333,21 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
       (Icons.timer_rounded, '回答時間', _formatDuration(ref.read(examTimerProvider).elapsed), Theme.of(context).colorScheme.primary),
       (Icons.edit_note_rounded, '未回答', '$unanswered問', const Color(0xFF7A5BA7)),
     ];
-    return ListView(key: const ValueKey('mock-exam-result'), padding: const EdgeInsets.only(bottom: 24), children: [
-      const SizedBox(height: 12),
-      Text('🎉  模擬試験終了', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
-      const SizedBox(height: 2),
-      const Text('模擬試験結果', textAlign: TextAlign.center),
-      const SizedBox(height: 24),
-      Center(child: TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: accuracy / 100), duration: const Duration(seconds: 1), curve: Curves.easeOutCubic, builder: (_, value, __) => SizedBox(width: 176, height: 176, child: Stack(alignment: Alignment.center, children: [SizedBox.expand(child: CircularProgressIndicator(value: value, strokeWidth: 14, strokeCap: StrokeCap.round, backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest)), Column(mainAxisSize: MainAxisSize.min, children: [Text('正答率', style: Theme.of(context).textTheme.labelLarge), Text('${(value * 100).round()}%', style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.primary))])])))),
-      const SizedBox(height: 28),
-      GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: stats.length, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.65), itemBuilder: (_, index) {
+    final colors = Theme.of(context).colorScheme;
+    return Column(key: const ValueKey('mock-exam-result'), children: [
+      Expanded(child: ListView(padding: const EdgeInsets.only(bottom: 32), children: [
+      const SizedBox(height: 16),
+      Center(child: Container(width: 72, height: 72, decoration: BoxDecoration(shape: BoxShape.circle, color: colors.primaryContainer), child: Icon(Icons.celebration_rounded, semanticLabel: '試験終了', size: 38, color: colors.onPrimaryContainer))),
+      const SizedBox(height: 18),
+      Text('模擬試験終了', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -.6)),
+      const SizedBox(height: 8),
+      Text('よく頑張りました！', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colors.onSurfaceVariant, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 30),
+      Center(child: TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: accuracy / 100), duration: const Duration(seconds: 1), curve: Curves.easeOutCubic, builder: (_, value, __) => SizedBox(width: 232, height: 232, child: Stack(alignment: Alignment.center, children: [SizedBox.expand(child: CircularProgressIndicator(value: value, strokeWidth: 18, strokeCap: StrokeCap.round, backgroundColor: colors.surfaceContainerHighest)), Container(width: 176, height: 176, decoration: BoxDecoration(shape: BoxShape.circle, color: colors.surface, boxShadow: const [BoxShadow(color: Color(0x120F172A), blurRadius: 24, offset: Offset(0, 8))])), Column(mainAxisSize: MainAxisSize.min, children: [Text('正答率', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colors.onSurfaceVariant, fontWeight: FontWeight.w700)), const SizedBox(height: 2), Text('${(value * 100).round()}%', style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -2, color: colors.primary))])])))),
+      const SizedBox(height: 36),
+      GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: stats.length, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 1.42), itemBuilder: (_, index) {
         final stat = stats[index];
-        return TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: 1), duration: Duration(milliseconds: 350 + index * 100), curve: Interval(index * .12, 1, curve: Curves.easeOutCubic), builder: (_, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 14 * (1 - value)), child: child)), child: AppCard(padding: const EdgeInsets.all(14), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(stat.$1, color: stat.$4, size: 25), const SizedBox(height: 5), Text(stat.$2, style: Theme.of(context).textTheme.labelMedium), Text(stat.$3, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900))])));
+        return TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: 1), duration: Duration(milliseconds: 350 + index * 100), curve: Interval(index * .12, 1, curve: Curves.easeOutCubic), builder: (_, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 14 * (1 - value)), child: child)), child: AppCard(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text(stat.$3, maxLines: 1, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -.8, color: stat.$4)), const SizedBox(height: 7), Row(mainAxisSize: MainAxisSize.min, children: [Icon(stat.$1, color: stat.$4, size: 18), const SizedBox(width: 6), Text(stat.$2, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: colors.onSurfaceVariant, fontWeight: FontWeight.w700))])])));
       }),
       const SizedBox(height: 28),
       Text('間違えた問題一覧', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
@@ -362,12 +366,16 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
           ])),
           const SizedBox(height: 12),
         ],
-      const SizedBox(height: 12),
-      Row(children: [
-        Expanded(child: FilledButton.tonalIcon(onPressed: () => _start(createStudySession(_availableQuestions!, questionCount: _questionCount == 0 ? _availableQuestions!.length : _questionCount)), icon: const Icon(Icons.replay_rounded), label: const Text('もう一度挑戦'))),
-        const SizedBox(width: 12),
-        Expanded(child: FilledButton.icon(onPressed: () => context.go('/home'), icon: const Icon(Icons.home_rounded), label: const Text('ホームへ戻る'))),
-      ]),
+      ])),
+      Container(
+        padding: const EdgeInsets.fromLTRB(0, 14, 0, 4),
+        decoration: BoxDecoration(color: colors.surface, border: Border(top: BorderSide(color: colors.outlineVariant.withValues(alpha: .55)))),
+        child: Row(children: [
+          Expanded(child: FilledButton.tonalIcon(onPressed: () => _start(createStudySession(_availableQuestions!, questionCount: _questionCount == 0 ? _availableQuestions!.length : _questionCount)), icon: const Icon(Icons.replay_rounded), label: const Text('もう一度挑戦'))),
+          const SizedBox(width: 12),
+          Expanded(child: FilledButton.icon(onPressed: () => context.go('/home'), icon: const Icon(Icons.home_rounded), label: const Text('ホームへ戻る'))),
+        ]),
+      ),
     ]);
   }
 }

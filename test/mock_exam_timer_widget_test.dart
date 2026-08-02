@@ -58,12 +58,16 @@ void main() {
 
     await tester.pump(const Duration(minutes: 20));
     await tester.pump();
-    expect(find.text('模擬試験結果'), findsOneWidget);
-    expect(find.text('正解数'), findsOneWidget);
-    expect(find.text('不正解数'), findsOneWidget);
+    expect(find.text('模擬試験終了'), findsOneWidget);
+    expect(find.text('よく頑張りました！'), findsOneWidget);
+    expect(find.byIcon(Icons.celebration_rounded), findsOneWidget);
+    expect(find.text('正解'), findsOneWidget);
+    expect(find.text('不正解'), findsOneWidget);
     expect(find.text('正答率'), findsOneWidget);
     expect(find.text('回答時間'), findsOneWidget);
-    expect(find.text('未回答数'), findsOneWidget);
+    expect(find.text('未回答'), findsOneWidget);
+    expect(find.text('もう一度挑戦'), findsOneWidget);
+    expect(find.text('ホームへ戻る'), findsOneWidget);
     expect(find.text('1問'), findsNWidgets(2));
     expect(find.text('テスト問題'), findsNothing);
     expect(find.text('回答した問題は全問正解です！'), findsOneWidget);
