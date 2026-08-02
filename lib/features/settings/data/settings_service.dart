@@ -70,7 +70,9 @@ OS: ${defaultTargetPlatform.name}
           key == 'favorite_question_ids_v1' ||
           key == 'mistake_question_ids_v1' ||
           key.startsWith('study_statistics_') ||
-          key.startsWith('learning_history_'),
+          key.startsWith('learning_history_') ||
+          key.startsWith('study_calendar_') ||
+          key == 'daily_goal_v1',
     );
     await Future.wait(keys.map(_preferences.remove));
   }
@@ -86,6 +88,8 @@ OS: ${defaultTargetPlatform.name}
       'learningHistory',
       'mistakes',
       'statistics',
+      'studyDays',
+      'study_calendar',
     ]) {
       await _deleteCollection(userDocument.collection(name));
     }
