@@ -12,6 +12,8 @@ class HarikyuLabApp extends ConsumerWidget {
       title: 'はりきゅうラボ',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
       routerConfig: ref.watch(appRouterProvider),
     );
   }

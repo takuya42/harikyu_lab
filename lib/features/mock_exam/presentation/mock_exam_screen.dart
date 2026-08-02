@@ -1,6 +1,10 @@
+import 'dart:ui' show FontFeature;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/mock_exam/application/exam_timer_controller.dart';
@@ -12,23 +16,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _questionCountPreferenceKey = 'mock_exam_question_count';
 const _timeLimitPreferenceKey = 'mock_exam_time_limit_minutes';
 const _questionCountOptions = [20, 50, 100, 0];
-// `10` represents the debug-only 10-second limit. The regular values are
-// minutes, preserving the existing preference format so this option can be
-// removed without a settings migration before release.
 const _debugTimeLimitValue = 10;
-const _timeLimitOptions = [
-  if (kDebugMode) _debugTimeLimitValue,
-  0,
-  20,
-  40,
-  60,
-  90,
-];
+const _timeLimitOptions = [if (kDebugMode) _debugTimeLimitValue, 0, 20, 40, 60, 90];
 
-Duration _timeLimitDuration(int value) =>
-    value == _debugTimeLimitValue && kDebugMode
-        ? const Duration(seconds: 10)
-        : Duration(minutes: value);
+Duration _timeLimitDuration(int value) => value == _debugTimeLimitValue && kDebugMode
+    ? const Duration(seconds: 10)
+    : Duration(minutes: value);
 
 String _timeLimitLabel(int value) {
   if (value == _debugTimeLimitValue && kDebugMode) return '10秒（開発用）';
@@ -47,12 +40,14 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
   List<StudyQuestion>? _session;
   List<Question>? _availableQuestions;
   final List<StudyQuestion> _incorrectQuestions = [];
+  final Map<String, int> _answers = {};
   ProviderSubscription<ExamTimerState>? _timerSubscription;
   int _index = 0;
   int? _selectedAnswer;
   int _correctCount = 0;
   int _answeredCount = 0;
   bool _finished = false;
+  bool _starting = false;
   int _questionCount = 20;
   int _timeLimitMinutes = 0;
 
@@ -61,7 +56,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _timerSubscription = ref.listenManual(examTimerProvider, (previous, next) {
-      if (next.isTimeUp && previous?.isTimeUp != true) _finishExam();
+      if (next.isTimeUp && previous?.isTimeUp != true) _handleTimeUp();
     });
     _restoreSettings();
   }
@@ -77,15 +72,10 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     final preferences = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
-      final savedQuestionCount =
-          preferences.getInt(_questionCountPreferenceKey);
-      final savedTimeLimit = preferences.getInt(_timeLimitPreferenceKey);
-      if (_questionCountOptions.contains(savedQuestionCount)) {
-        _questionCount = savedQuestionCount!;
-      }
-      if (_timeLimitOptions.contains(savedTimeLimit)) {
-        _timeLimitMinutes = savedTimeLimit!;
-      }
+      final count = preferences.getInt(_questionCountPreferenceKey);
+      final limit = preferences.getInt(_timeLimitPreferenceKey);
+      if (_questionCountOptions.contains(count)) _questionCount = count!;
+      if (_timeLimitOptions.contains(limit)) _timeLimitMinutes = limit!;
     });
   }
 
@@ -110,18 +100,26 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     super.dispose();
   }
 
+  Future<void> _startAnimated(List<Question> questions, int count) async {
+    if (_starting) return;
+    setState(() => _starting = true);
+    await Future<void>.delayed(const Duration(milliseconds: 240));
+    if (!mounted) return;
+    _start(createStudySession(questions, questionCount: count));
+  }
+
   void _start(List<StudyQuestion> questions) {
-    ref
-        .read(examTimerProvider.notifier)
-        .start(_timeLimitDuration(_timeLimitMinutes));
+    ref.read(examTimerProvider.notifier).start(_timeLimitDuration(_timeLimitMinutes));
     setState(() {
       _session = questions;
       _incorrectQuestions.clear();
+      _answers.clear();
       _index = 0;
       _selectedAnswer = null;
       _correctCount = 0;
       _answeredCount = 0;
       _finished = false;
+      _starting = false;
     });
   }
 
@@ -129,6 +127,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     if (_selectedAnswer != null || ref.read(examTimerProvider).isPaused) return;
     setState(() {
       _selectedAnswer = answer;
+      _answers[question.question.id] = answer;
       _answeredCount++;
       if (answer == question.correctAnswerIndex) {
         _correctCount++;
@@ -139,10 +138,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
   }
 
   void _next() {
-    if (_index + 1 == _session!.length) {
-      _finishExam();
-      return;
-    }
+    if (_index + 1 == _session!.length) return _finishExam();
     setState(() {
       _index++;
       _selectedAnswer = null;
@@ -153,6 +149,31 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     if (!mounted || _finished || _session == null) return;
     ref.read(examTimerProvider.notifier).stop();
     setState(() => _finished = true);
+  }
+
+  Future<void> _handleTimeUp() async {
+    if (!mounted || _finished || _session == null) return;
+    await HapticFeedback.mediumImpact();
+    if (!mounted) return;
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: '時間切れ',
+      transitionDuration: const Duration(milliseconds: 220),
+      transitionBuilder: (_, animation, _, child) => FadeTransition(
+        opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+        child: ScaleTransition(scale: Tween(begin: .96, end: 1.0).animate(animation), child: child),
+      ),
+      pageBuilder: (_, _, _) => const AlertDialog(
+        icon: Icon(Icons.timer_off_rounded, size: 36),
+        title: Text('時間切れです', textAlign: TextAlign.center),
+      ),
+    ).timeout(const Duration(milliseconds: 800), onTimeout: () {
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    });
+    _finishExam();
   }
 
   String _formatDuration(Duration duration) {
@@ -168,11 +189,23 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     return AppPage(
       title: '模擬試験',
       child: Stack(children: [
-        _finished
-            ? _result()
-            : _session == null
-                ? _introduction()
-                : _question(timer),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 360),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween(begin: const Offset(.06, 0), end: Offset.zero).animate(animation),
+              child: child,
+            ),
+          ),
+          child: _finished
+              ? _result()
+              : _session == null
+                  ? _introduction()
+                  : _question(timer),
+        ),
         if (timer.isPaused && !_finished) _pauseOverlay(),
       ]),
     );
@@ -184,379 +217,239 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
         data: (questions) {
           if (questions.isEmpty) return _loadError('問題がありません。');
           _availableQuestions = questions;
-          final requestedCount = _questionCount == 0
-              ? questions.length
-              : _questionCount;
-          final count = questions.length < requestedCount
-              ? questions.length
-              : requestedCount;
-          return ListView(children: [
-            const SizedBox(height: 32),
-            Icon(Icons.timer_rounded,
-                size: 72, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 20),
-            Text('本番形式で実力を確認',
-                textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 12),
-            Text('全問題から重複なく$count問を出題します。\n問題と選択肢の順番は毎回変わります。',
-                textAlign: TextAlign.center),
-            const SizedBox(height: 28),
-            _ExamSettingsCard(
-              questionCount: _questionCount,
-              timeLimitMinutes: _timeLimitMinutes,
-              onQuestionCountChanged: _selectQuestionCount,
-              onTimeLimitChanged: _selectTimeLimit,
+          final requested = _questionCount == 0 ? questions.length : _questionCount;
+          final count = questions.length < requested ? questions.length : requested;
+          return ListView(key: const ValueKey('exam-introduction'), padding: const EdgeInsets.only(bottom: 16), children: [
+            const SizedBox(height: 18),
+            Container(
+              width: 76,
+              height: 76,
+              margin: const EdgeInsets.symmetric(horizontal: 120),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.workspace_premium_rounded, size: 40, color: Theme.of(context).colorScheme.primary),
             ),
+            const SizedBox(height: 20),
+            Text('本番形式で実力を確認', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -.5)),
+            const SizedBox(height: 10),
+            Text('全問題から重複なく$count問を出題します。\n問題と選択肢の順番は毎回変わります。', textAlign: TextAlign.center, style: TextStyle(height: 1.6, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 26),
+            _ExamSettingsCard(questionCount: _questionCount, timeLimitMinutes: _timeLimitMinutes, onQuestionCountChanged: _selectQuestionCount, onTimeLimitChanged: _selectTimeLimit),
             const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () => _start(createStudySession(
-                questions,
-                questionCount: requestedCount,
-              )),
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('試験を始める'),
+            AnimatedOpacity(
+              opacity: _starting ? 0 : 1,
+              duration: const Duration(milliseconds: 260),
+              child: AnimatedScale(
+                scale: _starting ? .96 : 1,
+                duration: const Duration(milliseconds: 240),
+                child: FilledButton.icon(
+                  onPressed: _starting ? null : () => _startAnimated(questions, requested),
+                  icon: const Icon(Icons.play_arrow_rounded, size: 24),
+                  label: const Text('試験を始める'),
+                ),
+              ),
             ),
           ]);
         },
       );
 
-  Widget _loadError(Object error) => Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.cloud_off_outlined, size: 48),
-          const SizedBox(height: 16),
-          const Text('模擬試験データを取得できませんでした。'),
-          const SizedBox(height: 8),
-          Text('$error', textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          OutlinedButton(
-            onPressed: () => ref.invalidate(mockExamQuestionsProvider),
-            child: const Text('再試行'),
-          ),
-        ]),
-      );
+  Widget _loadError(Object error) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.cloud_off_outlined, size: 48),
+        const SizedBox(height: 16),
+        const Text('模擬試験データを取得できませんでした。'),
+        const SizedBox(height: 8),
+        Text('$error', textAlign: TextAlign.center),
+        const SizedBox(height: 16),
+        OutlinedButton(onPressed: () => ref.invalidate(mockExamQuestionsProvider), child: const Text('再試行')),
+      ]));
 
   Widget _question(ExamTimerState timer) {
     final item = _session![_index];
-    return ListView(key: ValueKey(item.question.id), children: [
+    final progress = (_index + 1) / _session!.length;
+    return Column(key: const ValueKey('exam-question'), children: [
+      TweenAnimationBuilder<double>(
+        tween: Tween(end: progress),
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+        builder: (_, value, __) => LinearProgressIndicator(value: value, minHeight: 7, borderRadius: BorderRadius.circular(99)),
+      ),
+      const SizedBox(height: 14),
       Row(children: [
-        Expanded(
-          child: Text('問題 ${_index + 1} / ${_session!.length}',
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w700)),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(99)),
+          child: Text('問題 ${_index + 1} / ${_session!.length}', style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer, fontWeight: FontWeight.w800)),
         ),
-        IconButton(
-          key: const ValueKey('pause-exam'),
-          tooltip: '一時停止',
-          visualDensity: VisualDensity.compact,
-          onPressed: () => ref.read(examTimerProvider.notifier).pause(),
-          icon: const Icon(Icons.pause_rounded),
-        ),
-        const Icon(Icons.schedule_rounded, size: 18),
-        const SizedBox(width: 4),
-        Text(_formatDuration(timer.hasTimeLimit
-            ? Duration(seconds: (timer.remaining.inMilliseconds / 1000).ceil())
-            : timer.elapsed)),
+        const Spacer(),
+        IconButton(key: const ValueKey('pause-exam'), tooltip: '一時停止', onPressed: () => ref.read(examTimerProvider.notifier).pause(), icon: const Icon(Icons.pause_circle_outline_rounded, size: 26)),
+        const SizedBox(width: 20),
+        _TimerBadge(timer: timer, text: _formatDuration(timer.hasTimeLimit ? Duration(seconds: (timer.remaining.inMilliseconds / 1000).ceil()) : timer.elapsed)),
       ]),
-      const SizedBox(height: 20),
-      Text(item.question.text,
-          style: Theme.of(context)
-              .textTheme
-              .titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 24),
-      for (var answer = 0; answer < item.choices.length; answer++) ...[
-        AppCard(
-          onTap: () => _answer(answer, item),
-          child: Row(children: [
-            CircleAvatar(child: Text('${answer + 1}')),
-            const SizedBox(width: 16),
-            Expanded(child: Text(item.choices[answer])),
-            if (_selectedAnswer == answer)
-              Icon(
-                answer == item.correctAnswerIndex
-                    ? Icons.check_circle_rounded
-                    : Icons.cancel_rounded,
-                color: answer == item.correctAnswerIndex
-                    ? Colors.green
-                    : Colors.red,
-              ),
+      const SizedBox(height: 18),
+      Expanded(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 380),
+          transitionBuilder: (child, animation) {
+            final incoming = child.key == ValueKey(item.question.id);
+            return FadeTransition(opacity: animation, child: SlideTransition(position: Tween(begin: Offset(incoming ? .12 : -.12, 0), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)), child: child));
+          },
+          child: ListView(key: ValueKey(item.question.id), padding: const EdgeInsets.only(bottom: 24), children: [
+            TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: 1), duration: const Duration(milliseconds: 360), builder: (_, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 12 * (1 - value)), child: child)), child: Text(item.question.text, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, height: 1.45))),
+            const SizedBox(height: 22),
+            for (var answer = 0; answer < item.choices.length; answer++)
+              _StaggeredChoice(index: answer, selected: _selectedAnswer == answer, correct: answer == item.correctAnswerIndex, showResult: _selectedAnswer != null, label: item.choices[answer], onTap: () => _answer(answer, item)),
+            if (_selectedAnswer != null) ...[
+              const SizedBox(height: 8),
+              AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(_selectedAnswer == item.correctAnswerIndex ? '正解です！' : '正解は「${item.choices[item.correctAnswerIndex]}」です。', style: const TextStyle(fontWeight: FontWeight.w800)),
+                if (item.question.explanation.isNotEmpty) ...[const SizedBox(height: 10), Text(item.question.explanation, style: const TextStyle(height: 1.55))],
+              ])),
+              const SizedBox(height: 16),
+              OutlinedButton(onPressed: _next, child: Text(_index + 1 == _session!.length ? '結果を見る' : '次の問題へ')),
+            ],
           ]),
         ),
-        const SizedBox(height: 12),
-      ],
-      if (_selectedAnswer != null) ...[
-        const SizedBox(height: 8),
-        Text(
-          _selectedAnswer == item.correctAnswerIndex
-              ? '正解です！'
-              : '正解は「${item.choices[item.correctAnswerIndex]}」です。',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        if (item.question.explanation.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(item.question.explanation),
-        ],
-        const SizedBox(height: 16),
-        OutlinedButton(
-          onPressed: _next,
-          child: Text(_index + 1 == _session!.length ? '結果を見る' : '次の問題へ'),
-        ),
-      ],
+      ),
     ]);
   }
 
-  Widget _pauseOverlay() => Positioned.fill(
-        child: ColoredBox(
-          color: Colors.black54,
-          child: Center(
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Text(
-                    '試験を一時停止中',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton.icon(
-                    key: const ValueKey('resume-exam'),
-                    onPressed: () =>
-                        ref.read(examTimerProvider.notifier).resume(),
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('再開'),
-                  ),
-                ]),
-              ),
-            ),
-          ),
-        ),
-      );
+  Widget _pauseOverlay() => Positioned.fill(child: ColoredBox(color: Colors.black54, child: Center(child: Card(child: Padding(padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.pause_circle_filled_rounded, size: 42),
+        const SizedBox(height: 12),
+        const Text('試験を一時停止中', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 20),
+        FilledButton.icon(key: const ValueKey('resume-exam'), onPressed: () => ref.read(examTimerProvider.notifier).resume(), icon: const Icon(Icons.play_arrow_rounded), label: const Text('再開')),
+      ]))))));
 
   Widget _result() {
     final total = _session!.length;
     final unanswered = total - _answeredCount;
     final accuracy = total == 0 ? 0 : (_correctCount * 100 / total).round();
-    return ListView(key: const ValueKey('mock-exam-result'), children: [
+    final stats = [
+      (Icons.check_circle_rounded, '正解', '$_correctCount問', const Color(0xFF168A62)),
+      (Icons.cancel_rounded, '不正解', '${_answeredCount - _correctCount}問', const Color(0xFFD14343)),
+      (Icons.timer_rounded, '回答時間', _formatDuration(ref.read(examTimerProvider).elapsed), Theme.of(context).colorScheme.primary),
+      (Icons.edit_note_rounded, '未回答', '$unanswered問', const Color(0xFF7A5BA7)),
+    ];
+    return ListView(key: const ValueKey('mock-exam-result'), padding: const EdgeInsets.only(bottom: 24), children: [
+      const SizedBox(height: 12),
+      Text('🎉  模擬試験終了', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
+      const SizedBox(height: 2),
+      const Text('模擬試験結果', textAlign: TextAlign.center),
       const SizedBox(height: 24),
-      Icon(Icons.emoji_events_rounded,
-          size: 68, color: Theme.of(context).colorScheme.primary),
-      const SizedBox(height: 16),
-      Text('模擬試験結果',
-          textAlign: TextAlign.center,
-          style: Theme.of(context)
-              .textTheme
-              .headlineSmall
-              ?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 24),
-      AppCard(
-        child: Column(children: [
-          _ResultRow(label: '正解数', value: '$_correctCount問'),
-          const Divider(),
-          _ResultRow(label: '不正解数', value: '${total - _correctCount}問'),
-          const Divider(),
-          _ResultRow(label: '正答率', value: '$accuracy%'),
-          const Divider(),
-          _ResultRow(
-            label: '回答時間',
-            value: _formatDuration(ref.read(examTimerProvider).elapsed),
-          ),
-          const Divider(),
-          _ResultRow(label: '未回答数', value: '$unanswered問'),
-        ]),
-      ),
-      const SizedBox(height: 24),
-      Text('間違えた問題一覧',
-          style: Theme.of(context)
-              .textTheme
-              .titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800)),
+      Center(child: TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: accuracy / 100), duration: const Duration(seconds: 1), curve: Curves.easeOutCubic, builder: (_, value, __) => SizedBox(width: 176, height: 176, child: Stack(alignment: Alignment.center, children: [SizedBox.expand(child: CircularProgressIndicator(value: value, strokeWidth: 14, strokeCap: StrokeCap.round, backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest)), Column(mainAxisSize: MainAxisSize.min, children: [Text('正答率', style: Theme.of(context).textTheme.labelLarge), Text('${(value * 100).round()}%', style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.primary))])])))),
+      const SizedBox(height: 28),
+      GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: stats.length, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.65), itemBuilder: (_, index) {
+        final stat = stats[index];
+        return TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: 1), duration: Duration(milliseconds: 350 + index * 100), curve: Interval(index * .12, 1, curve: Curves.easeOutCubic), builder: (_, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 14 * (1 - value)), child: child)), child: AppCard(padding: const EdgeInsets.all(14), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(stat.$1, color: stat.$4, size: 25), const SizedBox(height: 5), Text(stat.$2, style: Theme.of(context).textTheme.labelMedium), Text(stat.$3, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900))])));
+      }),
+      const SizedBox(height: 28),
+      Text('間違えた問題一覧', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
       const SizedBox(height: 12),
       if (_incorrectQuestions.isEmpty)
         const AppCard(child: Center(child: Text('回答した問題は全問正解です！')))
       else
         for (final item in _incorrectQuestions) ...[
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.question.text,
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Text('正解：${item.choices[item.correctAnswerIndex]}'),
-                if (item.question.explanation.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(item.question.explanation),
-                ],
-              ],
-            ),
-          ),
+          AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _ReviewLine(icon: Icons.help_rounded, label: '問題', value: item.question.text),
+            const Divider(height: 24),
+            _ReviewLine(icon: Icons.check_rounded, label: '正解', value: item.choices[item.correctAnswerIndex], color: const Color(0xFF168A62)),
+            const SizedBox(height: 10),
+            _ReviewLine(icon: Icons.close_rounded, label: 'あなたの回答', value: item.choices[_answers[item.question.id]!], color: const Color(0xFFD14343)),
+            if (item.question.explanation.isNotEmpty) ...[const Divider(height: 24), _ReviewLine(icon: Icons.lightbulb_rounded, label: '解説', value: item.question.explanation)],
+          ])),
           const SizedBox(height: 12),
         ],
       const SizedBox(height: 12),
-      FilledButton.icon(
-        onPressed: () => _start(createStudySession(
-          _availableQuestions!,
-          questionCount: _questionCount == 0
-              ? _availableQuestions!.length
-              : _questionCount,
-        )),
-        icon: const Icon(Icons.replay_rounded),
-        label: const Text('もう一度挑戦'),
-      ),
+      Row(children: [
+        Expanded(child: FilledButton.tonalIcon(onPressed: () => _start(createStudySession(_availableQuestions!, questionCount: _questionCount == 0 ? _availableQuestions!.length : _questionCount)), icon: const Icon(Icons.replay_rounded), label: const Text('もう一度挑戦'))),
+        const SizedBox(width: 12),
+        Expanded(child: FilledButton.icon(onPressed: () => context.go('/home'), icon: const Icon(Icons.home_rounded), label: const Text('ホームへ戻る'))),
+      ]),
     ]);
   }
 }
 
-class _ExamSettingsCard extends StatelessWidget {
-  const _ExamSettingsCard({
-    required this.questionCount,
-    required this.timeLimitMinutes,
-    required this.onQuestionCountChanged,
-    required this.onTimeLimitChanged,
-  });
+class _TimerBadge extends StatelessWidget {
+  const _TimerBadge({required this.timer, required this.text});
+  final ExamTimerState timer;
+  final String text;
 
+  @override
+  Widget build(BuildContext context) {
+    final seconds = timer.remaining.inSeconds;
+    final color = timer.hasTimeLimit && seconds <= 60 ? Theme.of(context).colorScheme.error : timer.hasTimeLimit && seconds <= 300 ? const Color(0xFFE87914) : Theme.of(context).colorScheme.primary;
+    return AnimatedContainer(duration: const Duration(milliseconds: 280), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: color.withValues(alpha: .12), borderRadius: BorderRadius.circular(99), border: Border.all(color: color.withValues(alpha: .25))), child: Row(children: [Icon(Icons.schedule_rounded, size: 18, color: color), const SizedBox(width: 6), AnimatedDefaultTextStyle(duration: const Duration(milliseconds: 280), style: Theme.of(context).textTheme.titleMedium!.copyWith(color: color, fontWeight: FontWeight.w900, fontFeatures: const [FontFeature.tabularFigures()]), child: Text(text))]));
+  }
+}
+
+class _StaggeredChoice extends StatelessWidget {
+  const _StaggeredChoice({required this.index, required this.selected, required this.correct, required this.showResult, required this.label, required this.onTap});
+  final int index;
+  final bool selected;
+  final bool correct;
+  final bool showResult;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: 1), duration: Duration(milliseconds: 320 + index * 50), curve: Interval((index * .08).clamp(0.0, .35).toDouble(), 1, curve: Curves.easeOutCubic), builder: (_, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 12 * (1 - value)), child: child)), child: Padding(padding: const EdgeInsets.only(bottom: 12), child: _PressableChoice(selected: selected, color: primary, onTap: onTap, child: Row(children: [AnimatedContainer(duration: const Duration(milliseconds: 200), width: 36, height: 36, alignment: Alignment.center, decoration: BoxDecoration(shape: BoxShape.circle, color: selected ? primary : Theme.of(context).colorScheme.surfaceContainerHighest), child: Text('${index + 1}', style: TextStyle(fontWeight: FontWeight.w800, color: selected ? Theme.of(context).colorScheme.onPrimary : null))), const SizedBox(width: 14), Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, height: 1.4))), if (selected) Icon(showResult && correct ? Icons.check_circle_rounded : Icons.cancel_rounded, color: showResult && correct ? const Color(0xFF168A62) : Theme.of(context).colorScheme.error)]))));
+  }
+}
+
+class _PressableChoice extends StatefulWidget {
+  const _PressableChoice({required this.selected, required this.color, required this.onTap, required this.child});
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+  final Widget child;
+  @override
+  State<_PressableChoice> createState() => _PressableChoiceState();
+}
+
+class _PressableChoiceState extends State<_PressableChoice> {
+  bool pressed = false;
+  @override
+  Widget build(BuildContext context) => AnimatedScale(scale: pressed ? .97 : 1, duration: const Duration(milliseconds: 120), child: AnimatedContainer(duration: const Duration(milliseconds: 200), decoration: BoxDecoration(color: widget.selected ? widget.color.withValues(alpha: .1) : Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: widget.selected ? widget.color : Theme.of(context).colorScheme.outlineVariant), boxShadow: [BoxShadow(color: widget.selected ? widget.color.withValues(alpha: .12) : Colors.black.withValues(alpha: .035), blurRadius: widget.selected ? 18 : 12, offset: const Offset(0, 5))]), child: Material(color: Colors.transparent, borderRadius: BorderRadius.circular(20), clipBehavior: Clip.antiAlias, child: InkWell(onTap: widget.onTap, onHighlightChanged: (value) => setState(() => pressed = value), child: Padding(padding: const EdgeInsets.all(16), child: widget.child)))));
+}
+
+class _ExamSettingsCard extends StatelessWidget {
+  const _ExamSettingsCard({required this.questionCount, required this.timeLimitMinutes, required this.onQuestionCountChanged, required this.onTimeLimitChanged});
   final int questionCount;
   final int timeLimitMinutes;
   final ValueChanged<int?> onQuestionCountChanged;
   final ValueChanged<int?> onTimeLimitChanged;
 
   @override
-  Widget build(BuildContext context) => AppCard(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '試験設定',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 20),
-            LayoutBuilder(builder: (context, _) {
-              final questionCountField = _SettingField(
-                icon: Icons.assignment_outlined,
-                label: '問題数',
-                value: questionCount,
-                items: _questionCountOptions,
-                itemLabel: (value) => value == 0 ? '全問題' : '$value問',
-                onChanged: onQuestionCountChanged,
-              );
-              final timeLimitField = _SettingField(
-                icon: Icons.timer_outlined,
-                label: '制限時間',
-                value: timeLimitMinutes,
-                items: _timeLimitOptions,
-                itemLabel: _timeLimitLabel,
-                onChanged: onTimeLimitChanged,
-              );
-
-              if (MediaQuery.sizeOf(context).width < 400) {
-                return Column(
-                  children: [
-                    questionCountField,
-                    const SizedBox(height: 16),
-                    timeLimitField,
-                  ],
-                );
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: questionCountField),
-                  const SizedBox(width: 16),
-                  Expanded(child: timeLimitField),
-                ],
-              );
-            }),
-          ],
-        ),
-      );
+  Widget build(BuildContext context) => AppCard(padding: const EdgeInsets.all(22), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [Container(padding: const EdgeInsets.all(9), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(12)), child: Icon(Icons.tune_rounded, size: 22, color: Theme.of(context).colorScheme.primary)), const SizedBox(width: 12), Text('試験設定', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900))]),
+        const SizedBox(height: 20),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: _SettingField(icon: Icons.quiz_outlined, label: '問題数', value: questionCount, items: _questionCountOptions, itemLabel: (value) => value == 0 ? '全問題' : '$value問', onChanged: onQuestionCountChanged)), const SizedBox(width: 12), Expanded(child: _SettingField(icon: Icons.timer_outlined, label: '制限時間', value: timeLimitMinutes, items: _timeLimitOptions, itemLabel: _timeLimitLabel, onChanged: onTimeLimitChanged))]),
+      ]));
 }
 
 class _SettingField extends StatelessWidget {
-  const _SettingField({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.items,
-    required this.itemLabel,
-    required this.onChanged,
-  });
-
+  const _SettingField({required this.icon, required this.label, required this.value, required this.items, required this.itemLabel, required this.onChanged});
   final IconData icon;
   final String label;
   final int value;
   final List<int> items;
-  final String Function(int value) itemLabel;
+  final String Function(int) itemLabel;
   final ValueChanged<int?> onChanged;
-
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelLarge
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 52,
-            child: DropdownButtonFormField<int>(
-              initialValue: value,
-              isExpanded: true,
-              decoration: InputDecoration(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              items: [
-                for (final item in items)
-                  DropdownMenuItem(value: item, child: Text(itemLabel(item))),
-              ],
-              onChanged: onChanged,
-            ),
-          ),
-        ],
-      );
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 7), Flexible(child: Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800)))]), const SizedBox(height: 9), DropdownButtonFormField<int>(initialValue: value, isExpanded: true, borderRadius: BorderRadius.circular(18), decoration: InputDecoration(filled: true, fillColor: Theme.of(context).colorScheme.surfaceContainerLowest, contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 15), constraints: const BoxConstraints(minHeight: 54), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant))), items: [for (final item in items) DropdownMenuItem(value: item, child: Text(itemLabel(item), overflow: TextOverflow.ellipsis))], onChanged: onChanged)]);
 }
 
-class _ResultRow extends StatelessWidget {
-  const _ResultRow({required this.label, required this.value});
-
+class _ReviewLine extends StatelessWidget {
+  const _ReviewLine({required this.icon, required this.label, required this.value, this.color});
+  final IconData icon;
   final String label;
   final String value;
-
+  final Color? color;
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(label),
-          Text(value,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w800)),
-        ]),
-      );
+  Widget build(BuildContext context) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(icon, size: 20, color: color ?? Theme.of(context).colorScheme.primary), const SizedBox(width: 9), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color, fontWeight: FontWeight.w800)), const SizedBox(height: 2), Text(value, style: const TextStyle(height: 1.45))]))]);
 }
