@@ -176,85 +176,118 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         children: [
           const Positioned.fill(child: _AuthBackground()),
           SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  child: Column(
-                    children: [
-                      FadeTransition(
-                        opacity: _interval(0, .55),
-                        child: SlideTransition(
-                          position: Tween(begin: const Offset(0, -.12), end: Offset.zero)
-                              .animate(_interval(0, .55)),
-                          child: const _BrandHeader(),
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                      FadeTransition(
-                        opacity: _interval(.18, .82),
-                        child: SlideTransition(
-                          position: Tween(begin: const Offset(0, .08), end: Offset.zero)
-                              .animate(_interval(.18, .82)),
-                          child: _AuthCard(
-                            formKey: _formKey,
-                            isRegistration: isRegistration,
-                            nameController: _nameController,
-                            emailController: _emailController,
-                            passwordController: _passwordController,
-                            confirmationController: _confirmationController,
-                            obscurePassword: _obscurePassword,
-                            obscureConfirmation: _obscureConfirmation,
-                            acceptedTerms: _acceptedTerms,
-                            submitting: _submitting,
-                            onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
-                            onToggleConfirmation: () => setState(
-                              () => _obscureConfirmation = !_obscureConfirmation,
+            child: Stack(
+              children: [
+                Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: Column(
+                        children: [
+                          FadeTransition(
+                            opacity: _interval(0, .55),
+                            child: SlideTransition(
+                              position: Tween(begin: const Offset(0, -.12), end: Offset.zero)
+                                  .animate(_interval(0, .55)),
+                              child: const _BrandHeader(),
                             ),
-                            onTermsChanged: (value) => setState(() => _acceptedTerms = value ?? false),
-                            onSubmit: _submit,
-                            onResetPassword: _resetPassword,
                           ),
-                        ),
-                      ),
-                      if (!isRegistration) ...[
-                        const SizedBox(height: 26),
-                        FadeTransition(
-                          opacity: _interval(.48, 1),
-                          child: _SocialSignIn(
-                            submitting: _submitting,
-                            onGoogle: () => _signInWith(GoogleAuthProvider()),
-                            onApple: () => _signInWith(AppleAuthProvider()),
+                          const SizedBox(height: 28),
+                          FadeTransition(
+                            opacity: _interval(.18, .82),
+                            child: SlideTransition(
+                              position: Tween(begin: const Offset(0, .08), end: Offset.zero)
+                                  .animate(_interval(.18, .82)),
+                              child: _AuthCard(
+                                formKey: _formKey,
+                                isRegistration: isRegistration,
+                                nameController: _nameController,
+                                emailController: _emailController,
+                                passwordController: _passwordController,
+                                confirmationController: _confirmationController,
+                                obscurePassword: _obscurePassword,
+                                obscureConfirmation: _obscureConfirmation,
+                                acceptedTerms: _acceptedTerms,
+                                submitting: _submitting,
+                                onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
+                                onToggleConfirmation: () => setState(
+                                  () => _obscureConfirmation = !_obscureConfirmation,
+                                ),
+                                onTermsChanged: (value) => setState(() => _acceptedTerms = value ?? false),
+                                onSubmit: _submit,
+                                onResetPassword: _resetPassword,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
-                      const SizedBox(height: 22),
-                      FadeTransition(
-                        opacity: _interval(.58, 1),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(isRegistration ? 'すでにアカウントをお持ちの方' : 'アカウントをお持ちでない方'),
-                            TextButton(
-                              onPressed: _submitting
-                                  ? null
-                                  : () => context.pushReplacement(isRegistration ? '/login' : '/register'),
-                              child: Text(isRegistration ? 'ログイン' : '新規登録'),
+                          if (!isRegistration) ...[
+                            const SizedBox(height: 26),
+                            FadeTransition(
+                              opacity: _interval(.48, 1),
+                              child: _SocialSignIn(
+                                submitting: _submitting,
+                                onGoogle: () => _signInWith(GoogleAuthProvider()),
+                                onApple: () => _signInWith(AppleAuthProvider()),
+                              ),
                             ),
                           ],
-                        ),
+                          const SizedBox(height: 22),
+                          FadeTransition(
+                            opacity: _interval(.58, 1),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(isRegistration ? 'すでにアカウントをお持ちの方' : 'アカウントをお持ちでない方'),
+                                TextButton(
+                                  onPressed: _submitting
+                                      ? null
+                                      : () => context.pushReplacement(isRegistration ? '/login' : '/register'),
+                                  child: Text(isRegistration ? 'ログイン' : '新規登録'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
+                const Positioned(left: 24, top: 12, child: _AuthBackButton()),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _AuthBackButton extends StatelessWidget {
+  const _AuthBackButton();
+
+  void _goBack(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/home');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: Colors.white.withValues(alpha: .84),
+        elevation: 3,
+        shadowColor: Colors.black26,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: IconButton(
+          tooltip: '戻る',
+          onPressed: () => _goBack(context),
+          iconSize: 21,
+          color: const Color(0xFF20263A),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+        ),
+      );
 }
 
 class _AuthBackground extends StatelessWidget {
