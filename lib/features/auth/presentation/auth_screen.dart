@@ -100,32 +100,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   }
 
   Future<void> _resetPassword() async {
-    final controller = TextEditingController(text: _emailController.text.trim());
     final email = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        icon: const Icon(Icons.lock_reset_rounded),
-        title: const Text('パスワードを再設定'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: 'メールアドレス',
-            prefixIcon: Icon(Icons.mail_outline_rounded),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => context.pop(), child: const Text('キャンセル')),
-          FilledButton(
-            onPressed: () => context.pop(controller.text.trim()),
-            child: const Text('送信'),
-          ),
-        ],
+      builder: (_) => _ResetPasswordDialog(
+        initialEmail: _emailController.text.trim(),
       ),
     );
-    controller.dispose();
-    if (email == null || email.isEmpty || !mounted) return;
+    if (!mounted || email == null || email.isEmpty) return;
     try {
       await ref.read(firebaseAuthProvider).sendPasswordResetEmail(email: email);
       if (mounted) _showMessage('パスワード再設定メールを送信しました。');
@@ -236,6 +217,66 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       ),
     );
   }
+}
+
+/// Owns the text-input resources for exactly as long as the dialog route exists.
+///
+/// `showDialog` completes its future as soon as `Navigator.pop` is called, while
+/// the dialog remains mounted during its reverse transition. Disposing a
+/// controller in the caller immediately after awaiting that future therefore
+/// leaves the still-mounted [TextField] attached to a disposed controller.
+class _ResetPasswordDialog extends StatefulWidget {
+  const _ResetPasswordDialog({required this.initialEmail});
+
+  final String initialEmail;
+
+  @override
+  State<_ResetPasswordDialog> createState() => _ResetPasswordDialogState();
+}
+
+class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialEmail);
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        icon: const Icon(Icons.lock_reset_rounded),
+        title: const Text('パスワードを再設定'),
+        content: TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          autofocus: true,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            labelText: 'メールアドレス',
+            prefixIcon: Icon(Icons.mail_outline_rounded),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => context.pop(),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () => context.pop(_controller.text.trim()),
+            child: const Text('送信'),
+          ),
+        ],
+      );
 }
 
 class _AuthBackground extends StatelessWidget {
