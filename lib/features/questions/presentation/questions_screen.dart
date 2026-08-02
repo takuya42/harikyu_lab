@@ -120,7 +120,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         );
       }).toList(),
     );
-    final calendarRepository = await ref.read(studyCalendarRepositoryProvider.future);
+    final calendarRepository = ref.read(studyCalendarRepositoryProvider);
     await calendarRepository.recordStudy(history);
     final historyRepository = await ref.read(learningHistoryRepositoryProvider.future);
     await historyRepository.save(history);

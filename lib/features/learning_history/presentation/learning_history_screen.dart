@@ -13,8 +13,29 @@ class LearningHistoryScreen extends ConsumerStatefulWidget {
   ConsumerState<LearningHistoryScreen> createState() => _LearningHistoryScreenState();
 }
 
-class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
+class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen>
+    with WidgetsBindingObserver {
   late DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(studyCalendarProvider);
+      ref.invalidate(dailyGoalProvider);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,8 +86,11 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
 
   Widget _content(List<StudyCalendarDay> items, int dailyGoal) {
     return RefreshIndicator(
-      onRefresh: () async =>
-          (await ref.read(studyCalendarRepositoryProvider.future)).refresh(),
+      onRefresh: () async {
+        await ref.read(studyCalendarRepositoryProvider).refresh();
+        ref.invalidate(studyCalendarProvider);
+        ref.invalidate(dailyGoalProvider);
+      },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -137,7 +161,7 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
     );
     if (selected == null || !mounted) return;
     try {
-      final repository = await ref.read(studyCalendarRepositoryProvider.future);
+      final repository = ref.read(studyCalendarRepositoryProvider);
       await repository.updateDailyGoal(selected);
     } on Object {
       if (!mounted) return;
@@ -509,18 +533,6 @@ class _LoginRequiredState extends StatelessWidget {
 }
 
 String calendarErrorMessage(Object error) => '${error.runtimeType}\n$error';
-
-int calculateStudyStreak(List<StudyCalendarDay> items, {DateTime? today}) {
-  final days = items.where((item) => item.answeredCount > 0).map((item) => DateTime(item.date.year, item.date.month, item.date.day)).toSet();
-  var cursor = today ?? DateTime.now();
-  cursor = DateTime(cursor.year, cursor.month, cursor.day);
-  var result = 0;
-  while (days.contains(cursor)) {
-    result++;
-    cursor = cursor.subtract(const Duration(days: 1));
-  }
-  return result;
-}
 
 bool _sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 String _duration(Duration value) {

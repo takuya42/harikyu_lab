@@ -8,9 +8,15 @@ import 'package:harikyu_lab/features/learning_history/domain/study_calendar_day.
 import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
 import 'package:harikyu_lab/features/study_statistics/domain/study_statistics.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   static const _items = <_StudyItem>[
     _StudyItem('一問一答', 'すきま時間に', Icons.bolt_outlined, '/questions'),
     _StudyItem('模擬試験', '本番形式で確認', Icons.timer_outlined, '/mock-exam'),
@@ -18,6 +24,26 @@ class HomeScreen extends ConsumerWidget {
     _StudyItem('お気に入り', '保存問題を復習', Icons.favorite_border, '/favorites'),
     _StudyItem('弱点復習', '間違いを克服', Icons.refresh_outlined, '/mistakes'),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(studyCalendarProvider);
+      ref.invalidate(dailyGoalProvider);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -40,7 +66,11 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async => Future<void>.delayed(const Duration(milliseconds: 600)),
+          onRefresh: () async {
+            await ref.read(studyCalendarRepositoryProvider).refresh();
+            ref.invalidate(studyCalendarProvider);
+            ref.invalidate(dailyGoalProvider);
+          },
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
@@ -66,7 +96,10 @@ class HomeScreen extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Text('合格までの学びを、心地よく続けましょう。', style: TextStyle(color: colors.onSurfaceVariant)),
                     const SizedBox(height: 24),
-                    _Stats(statistics: statistics),
+                    _Stats(
+                      statistics: statistics,
+                      streakDays: calculateStudyStreak(calendar),
+                    ),
                     const SizedBox(height: 16),
                     _DailyGoalCard(answered: today?.answeredCount ?? 0, goal: goal),
                     const SizedBox(height: 36),
@@ -141,13 +174,14 @@ class _DailyGoalCard extends StatelessWidget {
 }
 
 class _Stats extends StatelessWidget {
-  const _Stats({required this.statistics});
+  const _Stats({required this.statistics, required this.streakDays});
   final StudyStatistics statistics;
+  final int streakDays;
   @override
   Widget build(BuildContext context) {
     final stats = [
       ('総回答数', '${statistics.totalAnswered}問', Icons.schedule_outlined),
-      ('連続', '${statistics.streakDays}日', Icons.local_fire_department_outlined),
+      ('連続', '$streakDays日', Icons.local_fire_department_outlined),
       ('正答率', '${statistics.accuracy}%', Icons.check_circle_outline),
     ];
     return AppCard(padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8), child: Row(

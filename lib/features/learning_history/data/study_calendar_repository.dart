@@ -14,6 +14,21 @@ String studyDateKey(DateTime value) =>
     '${value.month.toString().padLeft(2, '0')}-'
     '${value.day.toString().padLeft(2, '0')}';
 
+int calculateStudyStreak(List<StudyCalendarDay> items, {DateTime? today}) {
+  final studiedDays = items
+      .where((item) => item.answeredCount > 0)
+      .map((item) => DateTime(item.date.year, item.date.month, item.date.day))
+      .toSet();
+  final now = today ?? DateTime.now();
+  var cursor = DateTime(now.year, now.month, now.day);
+  var result = 0;
+  while (studiedDays.contains(cursor)) {
+    result++;
+    cursor = cursor.subtract(const Duration(days: 1));
+  }
+  return result;
+}
+
 abstract interface class StudyCalendarRepository {
   Stream<List<StudyCalendarDay>> watch();
   Stream<int> watchDailyGoal();
@@ -113,22 +128,22 @@ class FirestoreStudyCalendarRepository implements StudyCalendarRepository {
   }
 
   @override
-  Future<void> refresh() async => _days.limit(1).get();
+  Future<void> refresh() async =>
+      _days.limit(1).get(const GetOptions(source: Source.server));
 }
 
-final studyCalendarRepositoryProvider =
-    FutureProvider<StudyCalendarRepository>((ref) {
-      // Reading the current user is deliberately synchronous. Waiting for the
-      // first authStateChanges event here can leave the dependent
-      // StreamProvider loading forever when no auth event is delivered.
-      ref.watch(authStateProvider);
-      final user = ref.watch(firebaseAuthProvider).currentUser;
-      if (user == null) throw const CalendarAuthenticationException();
-      return FirestoreStudyCalendarRepository(
-        ref.watch(firebaseFirestoreProvider),
-        user.uid,
-      );
-    });
+final studyCalendarRepositoryProvider = Provider<StudyCalendarRepository>((ref) {
+  // Reading the current user is deliberately synchronous. Waiting for the
+  // first authStateChanges event here can leave the dependent StreamProvider
+  // loading forever when no auth event is delivered.
+  ref.watch(authStateProvider);
+  final user = ref.watch(firebaseAuthProvider).currentUser;
+  if (user == null) throw const CalendarAuthenticationException();
+  return FirestoreStudyCalendarRepository(
+    ref.watch(firebaseFirestoreProvider),
+    user.uid,
+  );
+});
 
 class CalendarAuthenticationException implements Exception {
   const CalendarAuthenticationException();
@@ -138,11 +153,11 @@ class CalendarAuthenticationException implements Exception {
 }
 
 final studyCalendarProvider = StreamProvider<List<StudyCalendarDay>>((ref) async* {
-  final repository = await ref.watch(studyCalendarRepositoryProvider.future);
+  final repository = ref.watch(studyCalendarRepositoryProvider);
   yield* repository.watch();
 });
 
 final dailyGoalProvider = StreamProvider<int>((ref) async* {
-  final repository = await ref.watch(studyCalendarRepositoryProvider.future);
+  final repository = ref.watch(studyCalendarRepositoryProvider);
   yield* repository.watchDailyGoal();
 });
