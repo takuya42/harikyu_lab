@@ -3,9 +3,9 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:harikyu_lab/core/providers/shared_preferences_provider.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
-import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 abstract interface class LearningHistoryRepository {

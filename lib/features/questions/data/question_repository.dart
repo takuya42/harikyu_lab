@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:harikyu_lab/core/providers/shared_preferences_provider.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -164,10 +165,6 @@ final httpClientProvider = Provider<http.Client>((ref) {
   ref.onDispose(client.close);
   return client;
 });
-
-final sharedPreferencesProvider = FutureProvider<SharedPreferences>(
-  (ref) => SharedPreferences.getInstance(),
-);
 
 final questionRepositoryProvider = FutureProvider<QuestionRepository>(
   (ref) async => GoogleSheetsQuestionRepository(
