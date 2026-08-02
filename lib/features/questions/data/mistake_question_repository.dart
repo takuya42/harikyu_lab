@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:harikyu_lab/features/questions/data/question_repository.dart';
+import 'package:harikyu_lab/core/providers/shared_preferences_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 abstract interface class MistakeQuestionRepository {
