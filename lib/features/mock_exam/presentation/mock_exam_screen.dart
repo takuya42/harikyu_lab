@@ -12,6 +12,8 @@ import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
+import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
 
 const _questionCountPreferenceKey = 'mock_exam_question_count';
 const _timeLimitPreferenceKey = 'mock_exam_time_limit_minutes';
@@ -50,6 +52,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
   bool _starting = false;
   int _questionCount = 20;
   int _timeLimitMinutes = 0;
+  DateTime? _startedAt;
 
   @override
   void initState() {
@@ -120,6 +123,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
       _answeredCount = 0;
       _finished = false;
       _starting = false;
+      _startedAt = DateTime.now();
     });
   }
 
@@ -149,6 +153,37 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     if (!mounted || _finished || _session == null) return;
     ref.read(examTimerProvider.notifier).stop();
     setState(() => _finished = true);
+    _saveHistory();
+  }
+
+  Future<void> _saveHistory() async {
+    final session = _session;
+    final startedAt = _startedAt;
+    if (session == null || startedAt == null) return;
+    _startedAt = null;
+    final completedAt = DateTime.now();
+    final history = LearningHistory(
+      id: '${completedAt.microsecondsSinceEpoch}',
+      type: LearningType.mockExam,
+      completedAt: completedAt,
+      questionCount: session.length,
+      correctCount: _correctCount,
+      unansweredCount: session.length - _answers.length,
+      duration: ref.read(examTimerProvider).elapsed,
+      category: '全科目',
+      answers: session.where((item) => _answers.containsKey(item.question.id)).map((item) {
+        final selected = _answers[item.question.id]!;
+        return HistoryAnswer(
+          question: item.question.text,
+          selectedAnswer: item.choices[selected],
+          correctAnswer: item.choices[item.correctAnswerIndex],
+          explanation: item.question.explanation,
+          isCorrect: selected == item.correctAnswerIndex,
+        );
+      }).toList(),
+    );
+    final repository = await ref.read(learningHistoryRepositoryProvider.future);
+    await repository.save(history);
   }
 
   Future<void> _handleTimeUp() async {

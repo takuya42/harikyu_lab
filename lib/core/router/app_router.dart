@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:harikyu_lab/core/widgets/feature_placeholder.dart';
+import 'package:harikyu_lab/features/learning_history/presentation/learning_history_screen.dart';
 import 'package:harikyu_lab/features/home/presentation/home_screen.dart';
 import 'package:harikyu_lab/features/questions/presentation/questions_screen.dart';
 import 'package:harikyu_lab/features/questions/presentation/categories_screen.dart';
@@ -29,7 +29,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/mock-exam', pageBuilder: (_, state) => _fadeSlidePage(state, const MockExamScreen())),
           GoRoute(path: '/favorites', builder: (_, _) => const QuestionsScreen(favoritesOnly: true)),
           GoRoute(path: '/mistakes', builder: (_, _) => const QuestionsScreen(mistakesOnly: true)),
-          GoRoute(path: '/history', builder: (_, _) => const FeaturePlaceholder(title: '学習履歴', description: '日々の学習量や正答率を振り返り、成長を確認できます。', icon: Icons.insights_rounded)),
+          GoRoute(path: '/history', pageBuilder: (_, state) => _fadeSlidePage(state, const LearningHistoryScreen())),
           GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
           GoRoute(path: '/login', builder: (_, _) => const AuthScreen(isRegistration: false)),
           GoRoute(path: '/register', builder: (_, _) => const AuthScreen(isRegistration: true)),
