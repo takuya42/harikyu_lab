@@ -65,7 +65,8 @@ void main() {
     expect(find.text('回答時間'), findsOneWidget);
     expect(find.text('未回答数'), findsOneWidget);
     expect(find.text('1問'), findsNWidgets(2));
-    expect(find.text('テスト問題'), findsOneWidget);
+    expect(find.text('テスト問題'), findsNothing);
+    expect(find.text('回答した問題は全問正解です！'), findsOneWidget);
   });
 
   testWidgets('開発用10秒タイマーが一時停止・再開後に未回答を採点する',
@@ -109,7 +110,34 @@ void main() {
     expect(find.text('1問'), findsNWidgets(2));
     expect(find.text('0%'), findsOneWidget);
     expect(find.text('00:10'), findsOneWidget);
+    expect(find.text('テスト問題'), findsNothing);
+    expect(find.text('回答した問題は全問正解です！'), findsOneWidget);
+  });
+
+  testWidgets('回答して不正解だった問題は間違えた問題一覧に表示する',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          mockExamQuestionsProvider
+              .overrideWith((ref) => Stream.value(_questions)),
+        ],
+        child: const MaterialApp(home: MockExamScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('試験を始める'));
+    await tester.pump();
+    await tester.tap(find.text('不正解1'));
+    await tester.pump();
+    await tester.tap(find.text('結果を見る'));
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('mock-exam-result')), findsOneWidget);
     expect(find.text('テスト問題'), findsOneWidget);
+    expect(find.text('回答した問題は全問正解です！'), findsNothing);
+    expect(find.text('0問'), findsNWidgets(2));
+    expect(find.text('1問'), findsOneWidget);
   });
 
   testWidgets('バックグラウンド移行で一時停止する', (tester) async {
