@@ -8,6 +8,7 @@ import 'package:harikyu_lab/features/settings/data/settings_service.dart';
 
 const defaultDailyGoal = 10;
 const dailyGoalOptions = [5, 10, 20, 30, 50, 100];
+const studyCalendarCollection = 'study_calendar';
 
 String studyDateKey(DateTime value) =>
     '${value.year.toString().padLeft(4, '0')}-'
@@ -47,7 +48,7 @@ class FirestoreStudyCalendarRepository implements StudyCalendarRepository {
       _firestore.collection('users').doc(_uid);
 
   CollectionReference<Map<String, dynamic>> get _days =>
-      _user.collection('study_calendar');
+      _user.collection(studyCalendarCollection);
 
   @override
   Stream<List<StudyCalendarDay>> watch() async* {
@@ -76,38 +77,48 @@ class FirestoreStudyCalendarRepository implements StudyCalendarRepository {
 
   @override
   Future<void> recordStudy(LearningHistory history) async {
-    final date = studyDateKey(history.completedAt);
-    final answeredCount = history.answeredCount;
-    final correctCount = history.correctCount;
-    debugPrint(
-      'recordStudy: uid=$_uid date=$date answered=$answeredCount correct=$correctCount',
-    );
+    debugPrint('recordStudy called');
+    try {
+      final date = studyDateKey(history.completedAt);
+      final answeredCount = history.answeredCount;
+      final correctCount = history.correctCount;
+      debugPrint(
+        'recordStudy: path=users/$_uid/$studyCalendarCollection/$date '
+        'answered=$answeredCount correct=$correctCount',
+      );
 
-    final reference = _days.doc(date);
-    await _firestore.runTransaction((transaction) async {
-      final userSnapshot = await transaction.get(_user);
-      final dailyGoal =
-          (userSnapshot.data()?['dailyGoal'] as num?)?.toInt() ??
-          defaultDailyGoal;
-      final daySnapshot = await transaction.get(reference);
-      final currentAnswered =
-          (daySnapshot.data()?['answeredCount'] as num?)?.toInt() ?? 0;
-      final nextAnswered = currentAnswered + answeredCount;
+      final reference = _days.doc(date);
+      await _firestore.runTransaction((transaction) async {
+        final userSnapshot = await transaction.get(_user);
+        final dailyGoal =
+            (userSnapshot.data()?['dailyGoal'] as num?)?.toInt() ??
+            defaultDailyGoal;
+        final daySnapshot = await transaction.get(reference);
+        final currentAnswered =
+            (daySnapshot.data()?['answeredCount'] as num?)?.toInt() ?? 0;
+        final nextAnswered = currentAnswered + answeredCount;
 
-      // A transaction is used because goalAchieved depends on the accumulated
-      // answer count. All counters are still written atomically in one commit.
-      transaction.set(reference, {
-        'answeredCount': FieldValue.increment(answeredCount),
-        'correctCount': FieldValue.increment(correctCount),
-        'studySeconds': FieldValue.increment(history.duration.inSeconds),
-        'examCount': FieldValue.increment(
-          history.type == LearningType.mockExam ? 1 : 0,
-        ),
-        'goalAchieved': nextAnswered >= dailyGoal,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    });
-    debugPrint('Firestore study_calendar updated');
+        // A transaction is used because goalAchieved depends on the
+        // accumulated answer count. All counters are written atomically.
+        transaction.set(reference, {
+          // Store the same yyyy-MM-dd key in the payload as well as the
+          // document ID, so readers never need a second date convention.
+          'date': date,
+          'answeredCount': FieldValue.increment(answeredCount),
+          'correctCount': FieldValue.increment(correctCount),
+          'studySeconds': FieldValue.increment(history.duration.inSeconds),
+          'examCount': FieldValue.increment(
+            history.type == LearningType.mockExam ? 1 : 0,
+          ),
+          'goalAchieved': nextAnswered >= dailyGoal,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      });
+      debugPrint('Firestore saved');
+    } on Object catch (error) {
+      debugPrint(error.toString());
+      rethrow;
+    }
   }
 
   @override
