@@ -46,7 +46,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final statistics = ref.watch(studyStatisticsProvider).asData?.value ??
         const StudyStatistics();
