@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harikyu_lab/app/app.dart';
+import 'package:harikyu_lab/features/auth/presentation/auth_screen.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 
@@ -24,6 +25,27 @@ ProviderScope testApp() => ProviderScope(
     );
 
 void main() {
+  testWidgets('パスワード再設定ダイアログを安全に閉じられる', (tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(home: AuthScreen(isRegistration: false)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('パスワードを忘れた方'));
+    await tester.pumpAndSettle();
+    expect(find.text('パスワードを再設定'), findsOneWidget);
+
+    await tester.tap(find.text('キャンセル'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpAndSettle();
+    expect(find.text('パスワードを再設定'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('スプラッシュからホームへ遷移する', (tester) async {
     await tester.pumpWidget(testApp());
     expect(find.text('はりきゅうラボ'), findsOneWidget);
