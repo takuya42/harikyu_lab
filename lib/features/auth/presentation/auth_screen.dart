@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -83,12 +82,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     });
   }
 
-  Future<void> _signInWith(AuthProvider provider) async {
-    await _runAuth(() async {
-      await ref.read(firebaseAuthProvider).signInWithProvider(provider);
-    });
-  }
-
   Future<void> _runAuth(Future<void> Function() operation) async {
     if (_submitting) return;
     setState(() => _submitting = true);
@@ -158,7 +151,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         'network-request-failed' || 'unavailable' =>
           '通信に失敗しました。接続を確認してください。',
         'too-many-requests' => 'しばらく時間をおいてから、もう一度お試しください。',
-        'popup-closed-by-user' || 'canceled' => 'ログインがキャンセルされました。',
         _ => widget.isRegistration ? '新規登録に失敗しました。' : 'ログインに失敗しました。',
       };
 
@@ -186,15 +178,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                       child: Column(
                         children: [
                           FadeTransition(
-                            opacity: _interval(0, .55),
-                            child: SlideTransition(
-                              position: Tween(begin: const Offset(0, -.12), end: Offset.zero)
-                                  .animate(_interval(0, .55)),
-                              child: const _BrandHeader(),
-                            ),
-                          ),
-                          const SizedBox(height: 28),
-                          FadeTransition(
                             opacity: _interval(.18, .82),
                             child: SlideTransition(
                               position: Tween(begin: const Offset(0, .08), end: Offset.zero)
@@ -220,24 +203,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                               ),
                             ),
                           ),
-                          if (!isRegistration) ...[
-                            const SizedBox(height: 26),
-                            FadeTransition(
-                              opacity: _interval(.48, 1),
-                              child: _SocialSignIn(
-                                submitting: _submitting,
-                                onGoogle: () => _signInWith(GoogleAuthProvider()),
-                                onApple: () => _signInWith(AppleAuthProvider()),
-                              ),
-                            ),
-                          ],
                           const SizedBox(height: 22),
                           FadeTransition(
                             opacity: _interval(.58, 1),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                Text(isRegistration ? 'すでにアカウントをお持ちの方' : 'アカウントをお持ちでない方'),
+                                Text(
+                                  isRegistration
+                                      ? 'すでにアカウントをお持ちの方はこちら'
+                                      : 'アカウントをお持ちでない方はこちら',
+                                ),
                                 TextButton(
                                   onPressed: _submitting
                                       ? null
@@ -252,7 +229,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                     ),
                   ),
                 ),
-                const Positioned(left: 24, top: 12, child: _AuthBackButton()),
               ],
             ),
           ),
@@ -260,34 +236,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       ),
     );
   }
-}
-
-class _AuthBackButton extends StatelessWidget {
-  const _AuthBackButton();
-
-  void _goBack(BuildContext context) {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/home');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: Colors.white.withValues(alpha: .84),
-        elevation: 3,
-        shadowColor: Colors.black26,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: IconButton(
-          tooltip: '戻る',
-          onPressed: () => _goBack(context),
-          iconSize: 21,
-          color: const Color(0xFF20263A),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-        ),
-      );
 }
 
 class _AuthBackground extends StatelessWidget {
@@ -303,47 +251,6 @@ class _AuthBackground extends StatelessWidget {
             stops: [0, .18, .43, .68],
           ),
         ),
-      );
-}
-
-class _BrandHeader extends StatelessWidget {
-  const _BrandHeader();
-
-  @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          Hero(
-            tag: 'auth-logo',
-            child: Material(
-              color: Colors.white,
-              elevation: 5,
-              shadowColor: Colors.black26,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              child: const SizedBox(
-                width: 76,
-                height: 76,
-                child: Icon(Icons.spa_rounded, size: 42, color: _brandColor),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'はりきゅうラボ',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: const Color(0xFF20263A),
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '国家試験合格をサポート',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF535D78),
-                  fontWeight: FontWeight.w500,
-                ),
-          ),
-        ],
       );
 }
 
@@ -395,13 +302,6 @@ class _AuthCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  isRegistration ? '新規登録' : 'おかえりなさい',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Text(isRegistration ? '学習を始める準備をしましょう' : '今日も合格へ一歩近づきましょう'),
-                const SizedBox(height: 24),
                 if (isRegistration) ...[
                   TextFormField(
                     controller: nameController,
@@ -484,7 +384,7 @@ class _AuthCard extends StatelessWidget {
                 _AnimatedAuthButton(
                   onPressed: submitting ? null : onSubmit,
                   loading: submitting,
-                  label: isRegistration ? '登録する' : 'ログイン',
+                  label: isRegistration ? '新規登録' : 'ログイン',
                 ),
               ],
             ),
@@ -536,68 +436,6 @@ class _AnimatedAuthButtonState extends State<_AnimatedAuthButton> {
                     : Text(widget.label, key: const ValueKey('label')),
               ),
             ),
-          ),
-        ),
-      );
-}
-
-class _SocialSignIn extends StatelessWidget {
-  const _SocialSignIn({required this.submitting, required this.onGoogle, required this.onApple});
-  final bool submitting;
-  final VoidCallback onGoogle;
-  final VoidCallback onApple;
-
-  @override
-  Widget build(BuildContext context) {
-    final showApple = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-    return Column(
-      children: [
-        const Row(
-          children: [
-            Expanded(child: Divider()),
-            Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('または')),
-            Expanded(child: Divider()),
-          ],
-        ),
-        const SizedBox(height: 18),
-        _ProviderButton(
-          icon: const Text('G', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF4285F4))),
-          label: 'Googleでログイン',
-          onPressed: submitting ? null : onGoogle,
-        ),
-        if (showApple) ...[
-          const SizedBox(height: 12),
-          _ProviderButton(
-            icon: const Icon(Icons.apple_rounded, color: Colors.black),
-            label: 'Appleでログイン',
-            onPressed: submitting ? null : onApple,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _ProviderButton extends StatelessWidget {
-  const _ProviderButton({required this.icon, required this.label, required this.onPressed});
-  final Widget icon;
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: OutlinedButton.icon(
-          onPressed: onPressed,
-          icon: icon,
-          label: Text(label),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF20263A),
-            backgroundColor: Colors.white,
-            side: const BorderSide(color: Color(0xFFDDE1EB)),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            textStyle: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
       );
