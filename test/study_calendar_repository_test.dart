@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/study_calendar_day.dart';
@@ -7,6 +8,19 @@ void main() {
   test('Firestore document ID uses yyyy-MM-dd', () {
     expect(studyDateKey(DateTime(2026, 8, 2, 23, 59)), '2026-08-02');
     expect(studyDateKey(DateTime(2026, 12, 31)), '2026-12-31');
+  });
+
+  test('Firestoreエラーは種別とpermission-deniedを表示できる', () {
+    final error = FirebaseException(
+      plugin: 'cloud_firestore',
+      code: 'permission-denied',
+      message: 'Missing or insufficient permissions.',
+    );
+
+    final message = calendarErrorMessage(error);
+
+    expect(message, contains('FirebaseException'));
+    expect(message, contains('permission-denied'));
   });
 
   test('連続学習日数は今日からansweredCountがある日だけを数える', () {

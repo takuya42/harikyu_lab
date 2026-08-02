@@ -35,12 +35,23 @@ class FirestoreStudyCalendarRepository implements StudyCalendarRepository {
       _user.collection('study_calendar');
 
   @override
-  Stream<List<StudyCalendarDay>> watch() => _days.snapshots().map((snapshot) {
-    debugPrint('Loaded ${snapshot.docs.length} study calendar documents');
-    return snapshot.docs
-        .map((document) => StudyCalendarDay.fromMap(document.id, document.data()))
-        .toList(growable: false);
-  });
+  Stream<List<StudyCalendarDay>> watch() async* {
+    debugPrint('Calendar Stream Start');
+    try {
+      await for (final snapshot in _days.snapshots()) {
+        debugPrint('Loaded ${snapshot.docs.length} documents');
+        yield snapshot.docs
+            .map(
+              (document) =>
+                  StudyCalendarDay.fromMap(document.id, document.data()),
+            )
+            .toList(growable: false);
+      }
+    } on Object catch (error) {
+      debugPrint(error.toString());
+      rethrow;
+    }
+  }
 
   @override
   Stream<int> watchDailyGoal() => _user.snapshots().map(
@@ -106,16 +117,25 @@ class FirestoreStudyCalendarRepository implements StudyCalendarRepository {
 }
 
 final studyCalendarRepositoryProvider =
-    FutureProvider<StudyCalendarRepository>((ref) async {
-      final auth = ref.watch(firebaseAuthProvider);
-      final authUser = await ref.watch(authStateProvider.future);
-      final user = authUser ?? (await auth.signInAnonymously()).user;
-      if (user == null) throw StateError('ユーザーを作成できませんでした。');
+    FutureProvider<StudyCalendarRepository>((ref) {
+      // Reading the current user is deliberately synchronous. Waiting for the
+      // first authStateChanges event here can leave the dependent
+      // StreamProvider loading forever when no auth event is delivered.
+      ref.watch(authStateProvider);
+      final user = ref.watch(firebaseAuthProvider).currentUser;
+      if (user == null) throw const CalendarAuthenticationException();
       return FirestoreStudyCalendarRepository(
         ref.watch(firebaseFirestoreProvider),
         user.uid,
       );
     });
+
+class CalendarAuthenticationException implements Exception {
+  const CalendarAuthenticationException();
+
+  @override
+  String toString() => 'ログインしてください';
+}
 
 final studyCalendarProvider = StreamProvider<List<StudyCalendarDay>>((ref) async* {
   final repository = await ref.watch(studyCalendarRepositoryProvider.future);

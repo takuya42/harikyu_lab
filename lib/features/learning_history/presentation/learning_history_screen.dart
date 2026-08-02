@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/study_calendar_day.dart';
 
@@ -17,9 +18,11 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(authStateProvider);
+    final user = ref.watch(firebaseAuthProvider).currentUser;
     final days = ref.watch(studyCalendarProvider);
-    final dailyGoal =
-        ref.watch(dailyGoalProvider).asData?.value ?? defaultDailyGoal;
+    final dailyGoalValue = ref.watch(dailyGoalProvider);
+    final dailyGoal = dailyGoalValue.asData?.value ?? defaultDailyGoal;
     return Scaffold(
       appBar: AppBar(
         title: const Text('学習カレンダー'),
@@ -35,13 +38,25 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
-            child: days.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, _) => _ErrorState(
-                onRetry: () => ref.invalidate(studyCalendarProvider),
-              ),
-              data: (items) => _content(items, dailyGoal),
-            ),
+            child: user == null
+                ? const _LoginRequiredState()
+                : days.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (error, _) => _ErrorState(
+                      error: error,
+                      onRetry: () => ref.invalidate(studyCalendarProvider),
+                    ),
+                    data: (items) => dailyGoalValue.when(
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (error, _) => _ErrorState(
+                        error: error,
+                        onRetry: () => ref.invalidate(dailyGoalProvider),
+                      ),
+                      data: (goal) => _content(items, goal),
+                    ),
+                  ),
           ),
         ),
       ),
@@ -463,17 +478,37 @@ class _Entrance extends StatelessWidget {
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.onRetry});
+  const _ErrorState({required this.error, required this.onRetry});
+  final Object error;
   final VoidCallback onRetry;
   @override
   Widget build(BuildContext context) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
         const Icon(Icons.cloud_off_rounded, size: 52),
         const SizedBox(height: 16),
         const Text('学習データを読み込めませんでした'),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: SelectableText(
+            calendarErrorMessage(error),
+            textAlign: TextAlign.center,
+          ),
+        ),
         const SizedBox(height: 16),
         OutlinedButton(onPressed: onRetry, child: const Text('再試行')),
       ]));
 }
+
+class _LoginRequiredState extends StatelessWidget {
+  const _LoginRequiredState();
+
+  @override
+  Widget build(BuildContext context) => const Center(
+        child: Text('ログインしてください'),
+      );
+}
+
+String calendarErrorMessage(Object error) => '${error.runtimeType}\n$error';
 
 int calculateStudyStreak(List<StudyCalendarDay> items, {DateTime? today}) {
   final days = items.where((item) => item.answeredCount > 0).map((item) => DateTime(item.date.year, item.date.month, item.date.day)).toSet();
