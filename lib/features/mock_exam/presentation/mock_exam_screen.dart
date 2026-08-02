@@ -152,13 +152,6 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
   void _finishExam() {
     if (!mounted || _finished || _session == null) return;
     ref.read(examTimerProvider.notifier).stop();
-    final alreadyIncorrect = _incorrectQuestions.toSet();
-    for (var i = 0; i < _session!.length; i++) {
-      final wasAnswered = i < _index || (i == _index && _selectedAnswer != null);
-      if (!wasAnswered && alreadyIncorrect.add(_session![i])) {
-        _incorrectQuestions.add(_session![i]);
-      }
-    }
     setState(() => _finished = true);
   }
 
@@ -388,7 +381,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
               ?.copyWith(fontWeight: FontWeight.w800)),
       const SizedBox(height: 12),
       if (_incorrectQuestions.isEmpty)
-        const AppCard(child: Center(child: Text('全問正解です！')))
+        const AppCard(child: Center(child: Text('回答した問題は全問正解です！')))
       else
         for (final item in _incorrectQuestions) ...[
           AppCard(
