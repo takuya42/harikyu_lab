@@ -48,4 +48,56 @@ abstract final class AppTheme {
       TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
     }),
   );
+
+  static final dark = ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.dark,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: _blue,
+      brightness: Brightness.dark,
+    ),
+    scaffoldBackgroundColor: const Color(0xFF10131A),
+    appBarTheme: const AppBarTheme(
+      centerTitle: false,
+      backgroundColor: Color(0xFF10131A),
+      scrolledUnderElevation: 0,
+      titleTextStyle: TextStyle(
+        color: Color(0xFFF1F3F8),
+        fontSize: 22,
+        fontWeight: FontWeight.w800,
+      ),
+    ),
+    cardTheme: CardThemeData(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+      ),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      height: 76,
+      elevation: 0,
+      indicatorShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size.fromHeight(54),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.controlRadius),
+        ),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+    ),
+    dividerTheme: const DividerThemeData(thickness: 1),
+    splashFactory: InkSparkle.splashFactory,
+    extensions: const [
+      AppSurfaceTheme(
+        subtle: Color(0xFF1A2130),
+        success: Color(0xFF54D5A5),
+        warning: Color(0xFFFFB85C),
+      ),
+    ],
+  );
 }

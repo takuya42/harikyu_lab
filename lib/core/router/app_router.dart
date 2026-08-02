@@ -18,15 +18,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (context, state, child) => _AppShell(location: state.uri.path, child: child),
         routes: [
-          GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
+          GoRoute(path: '/home', pageBuilder: (_, state) => _fadeSlidePage(state, const HomeScreen())),
           GoRoute(
             path: '/questions',
-            builder: (_, state) => QuestionsScreen(
+            pageBuilder: (_, state) => _fadeSlidePage(state, QuestionsScreen(
               subject: state.uri.queryParameters['subject'],
-            ),
+            )),
           ),
           GoRoute(path: '/categories', builder: (_, _) => const CategoriesScreen()),
-          GoRoute(path: '/mock-exam', builder: (_, _) => const MockExamScreen()),
+          GoRoute(path: '/mock-exam', pageBuilder: (_, state) => _fadeSlidePage(state, const MockExamScreen())),
           GoRoute(path: '/favorites', builder: (_, _) => const QuestionsScreen(favoritesOnly: true)),
           GoRoute(path: '/mistakes', builder: (_, _) => const QuestionsScreen(mistakesOnly: true)),
           GoRoute(path: '/history', builder: (_, _) => const FeaturePlaceholder(title: '学習履歴', description: '日々の学習量や正答率を振り返り、成長を確認できます。', icon: Icons.insights_rounded)),
@@ -38,6 +38,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+CustomTransitionPage<void> _fadeSlidePage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 280),
+    reverseTransitionDuration: const Duration(milliseconds: 240),
+    transitionsBuilder: (_, animation, __, child) => FadeTransition(
+      opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(.035, 0),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
+    ),
+  );
+}
 
 class _AppShell extends StatelessWidget {
   const _AppShell({required this.location, required this.child});
