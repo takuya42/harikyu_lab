@@ -142,19 +142,22 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     });
   }
 
-  void _next() {
-    if (_index + 1 == _session!.length) return _finishExam();
+  Future<void> _next() async {
+    if (_index + 1 == _session!.length) {
+      await _finishExam();
+      return;
+    }
     setState(() {
       _index++;
       _selectedAnswer = null;
     });
   }
 
-  void _finishExam() {
+  Future<void> _finishExam() async {
     if (!mounted || _finished || _session == null) return;
     ref.read(examTimerProvider.notifier).stop();
     setState(() => _finished = true);
-    _saveHistory();
+    await _saveHistory();
   }
 
   Future<void> _saveHistory() async {
@@ -184,7 +187,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
       }).toList(),
     );
     final calendarRepository = await ref.read(studyCalendarRepositoryProvider.future);
-    await calendarRepository.addSession(history);
+    await calendarRepository.recordStudy(history);
     final historyRepository = await ref.read(learningHistoryRepositoryProvider.future);
     await historyRepository.save(history);
   }
@@ -211,7 +214,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
         Navigator.of(context, rootNavigator: true).pop();
       }
     });
-    _finishExam();
+    await _finishExam();
   }
 
   String _formatDuration(Duration duration) {

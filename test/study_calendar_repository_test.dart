@@ -1,51 +1,27 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
-import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:harikyu_lab/features/learning_history/domain/study_calendar_day.dart';
+import 'package:harikyu_lab/features/learning_history/presentation/learning_history_screen.dart';
 
 void main() {
-  LearningHistory session({
-    required DateTime completedAt,
-    required int answered,
-    required int correct,
-    LearningType type = LearningType.quickQuiz,
-  }) => LearningHistory(
-    id: completedAt.microsecondsSinceEpoch.toString(),
-    type: type,
-    completedAt: completedAt,
-    questionCount: answered,
-    correctCount: correct,
-    unansweredCount: 0,
-    duration: const Duration(seconds: 90),
-    category: '',
-    answers: const [],
-  );
+  test('Firestore document ID uses yyyy-MM-dd', () {
+    expect(studyDateKey(DateTime(2026, 8, 2, 23, 59)), '2026-08-02');
+    expect(studyDateKey(DateTime(2026, 12, 31)), '2026-12-31');
+  });
 
-  test('同日の学習を加算し、設定した目標で達成を判定する', () async {
-    SharedPreferences.setMockInitialValues({dailyGoalPreferenceKey: 20});
-    final preferences = await SharedPreferences.getInstance();
-    final repository = LocalStudyCalendarRepository(preferences);
-    final date = DateTime(2026, 8, 2, 10);
-
-    await repository.addSession(
-      session(completedAt: date, answered: 8, correct: 6),
-    );
-    await repository.addSession(
-      session(
-        completedAt: date.add(const Duration(hours: 2)),
-        answered: 12,
-        correct: 10,
-        type: LearningType.mockExam,
-      ),
+  test('連続学習日数は今日からansweredCountがある日だけを数える', () {
+    StudyCalendarDay day(int date, int answers) => StudyCalendarDay(
+      date: DateTime(2026, 8, date),
+      answeredCount: answers,
+      correctCount: 0,
+      studySeconds: 0,
+      examCount: 0,
+      goalAchieved: false,
+      dailyGoal: 10,
     );
 
-    final day = (await repository.watch().first).single;
-    expect(day.answeredCount, 20);
-    expect(day.correctCount, 16);
-    expect(day.studySeconds, 180);
-    expect(day.examCount, 1);
-    expect(day.dailyGoal, 20);
-    expect(day.goalAchieved, isTrue);
-    repository.dispose();
+    final days = [day(2, 10), day(1, 3), day(0, 1), day(-1, 0)];
+    expect(calculateStudyStreak(days, today: DateTime(2026, 8, 2)), 3);
+    expect(calculateStudyStreak(days, today: DateTime(2026, 8, 3)), 0);
   });
 }
