@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
-import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
+import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
+import 'package:harikyu_lab/features/learning_history/domain/study_calendar_day.dart';
 
 class LearningHistoryScreen extends ConsumerStatefulWidget {
   const LearningHistoryScreen({super.key});
@@ -17,19 +17,30 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final history = ref.watch(learningHistoryProvider);
+    final days = ref.watch(studyCalendarProvider);
+    final dailyGoal =
+        ref.watch(dailyGoalProvider).asData?.value ?? defaultDailyGoal;
     return Scaffold(
-      appBar: AppBar(title: const Text('学習カレンダー')),
+      appBar: AppBar(
+        title: const Text('学習カレンダー'),
+        actions: [
+          IconButton(
+            tooltip: '学習目標を設定',
+            onPressed: () => _showGoalSettings(dailyGoal),
+            icon: const Icon(Icons.settings_rounded),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
-            child: history.when(
+            child: days.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, _) => _ErrorState(
-                onRetry: () => ref.invalidate(learningHistoryProvider),
+                onRetry: () => ref.invalidate(studyCalendarProvider),
               ),
-              data: _content,
+              data: (items) => _content(items, dailyGoal),
             ),
           ),
         ),
@@ -37,10 +48,10 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
     );
   }
 
-  Widget _content(List<LearningHistory> items) {
+  Widget _content(List<StudyCalendarDay> items, int dailyGoal) {
     return RefreshIndicator(
       onRefresh: () async =>
-          (await ref.read(learningHistoryRepositoryProvider.future)).refresh(),
+          (await ref.read(studyCalendarRepositoryProvider.future)).refresh(),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -52,6 +63,7 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
             child: _CalendarCard(
               month: _month,
               items: items,
+              dailyGoal: dailyGoal,
               onPrevious: () => setState(
                 () => _month = DateTime(_month.year, _month.month - 1),
               ),
@@ -75,8 +87,8 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
     );
   }
 
-  void _showDay(DateTime day, List<LearningHistory> allItems) {
-    final items = allItems.where((item) => _sameDay(item.completedAt, day)).toList();
+  void _showDay(DateTime day, List<StudyCalendarDay> allItems) {
+    final item = allItems.where((value) => _sameDay(value.date, day)).firstOrNull;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -85,8 +97,28 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (context) => _DaySheet(day: day, items: items),
+      builder: (context) => _DaySheet(day: day, item: item),
     );
+  }
+
+  Future<void> _showGoalSettings(int selectedGoal) async {
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => _GoalSheet(selectedGoal: selectedGoal),
+    );
+    if (selected == null || !mounted) return;
+    try {
+      await ref.read(dailyGoalProvider.notifier).setGoal(selected);
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('学習目標を保存できませんでした')),
+      );
+    }
   }
 }
 
@@ -140,17 +172,18 @@ class _CalendarCard extends StatelessWidget {
   const _CalendarCard({
     required this.month,
     required this.items,
+    required this.dailyGoal,
     required this.onPrevious,
     required this.onNext,
     required this.onDayTap,
   });
   final DateTime month;
-  final List<LearningHistory> items;
+  final List<StudyCalendarDay> items;
+  final int dailyGoal;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final ValueChanged<DateTime> onDayTap;
   static const _weekdays = ['日', '月', '火', '水', '木', '金', '土'];
-  static const _dailyGoal = 10;
 
   @override
   Widget build(BuildContext context) {
@@ -158,13 +191,12 @@ class _CalendarCard extends StatelessWidget {
     final count = DateTime(month.year, month.month + 1, 0).day;
     final leading = first.weekday % 7;
     final cells = ((leading + count + 6) ~/ 7) * 7;
-    final totals = <int, int>{};
-    for (final item in items.where(
-      (item) => item.completedAt.year == month.year && item.completedAt.month == month.month,
-    )) {
-      totals.update(item.completedAt.day, (value) => value + item.answeredCount,
-          ifAbsent: () => item.answeredCount);
-    }
+    final days = <int, StudyCalendarDay>{
+      for (final item in items.where(
+        (item) => item.date.year == month.year && item.date.month == month.month,
+      ))
+        item.date.day: item,
+    };
     return Card(
       elevation: 2,
       shadowColor: Colors.black.withValues(alpha: .12),
@@ -199,9 +231,10 @@ class _CalendarCard extends StatelessWidget {
                 final number = index - leading + 1;
                 if (number < 1 || number > count) return const SizedBox.shrink();
                 final day = DateTime(month.year, month.month, number);
-                final answers = totals[number] ?? 0;
+                final record = days[number];
+                final answers = record?.answeredCount ?? 0;
                 final today = _sameDay(day, DateTime.now());
-                final color = answers >= _dailyGoal
+                final color = record?.goalAchieved ?? false
                     ? const Color(0xFFFFD35A)
                     : answers > 0
                         ? const Color(0xFF69C780)
@@ -222,10 +255,10 @@ class _CalendarCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Wrap(spacing: 14, runSpacing: 8, alignment: WrapAlignment.center, children: [
-            _Legend(color: Color(0xFFE7E8EB), label: '学習なし'),
-            _Legend(color: Color(0xFF69C780), label: '1問以上回答'),
-            _Legend(color: Color(0xFFFFD35A), label: '目標達成（10問）'),
+          Wrap(spacing: 14, runSpacing: 8, alignment: WrapAlignment.center, children: [
+            const _Legend(color: Color(0xFFE7E8EB), label: '学習なし'),
+            const _Legend(color: Color(0xFF69C780), label: '1問以上回答'),
+            _Legend(color: const Color(0xFFFFD35A), label: '目標達成（$dailyGoal問）'),
           ]),
         ]),
       ),
@@ -247,13 +280,13 @@ class _Legend extends StatelessWidget {
 
 class _SummaryGrid extends StatelessWidget {
   const _SummaryGrid({required this.items});
-  final List<LearningHistory> items;
+  final List<StudyCalendarDay> items;
   @override
   Widget build(BuildContext context) {
     final answers = items.fold(0, (sum, item) => sum + item.answeredCount);
     final correct = items.fold(0, (sum, item) => sum + item.correctCount);
-    final minutes = (items.fold(0, (sum, item) => sum + item.duration.inSeconds) / 60).ceil();
-    final exams = items.where((item) => item.type == LearningType.mockExam).length;
+    final minutes = (items.fold(0, (sum, item) => sum + item.studySeconds) / 60).ceil();
+    final exams = items.fold(0, (sum, item) => sum + item.examCount);
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -303,47 +336,93 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _DaySheet extends StatelessWidget {
-  const _DaySheet({required this.day, required this.items});
+  const _DaySheet({required this.day, required this.item});
   final DateTime day;
-  final List<LearningHistory> items;
+  final StudyCalendarDay? item;
+
   @override
   Widget build(BuildContext context) {
-    final answers = items.fold(0, (sum, item) => sum + item.answeredCount);
-    final correct = items.fold(0, (sum, item) => sum + item.correctCount);
-    final duration = Duration(seconds: items.fold(0, (sum, item) => sum + item.duration.inSeconds));
-    final exams = items.where((item) => item.type == LearningType.mockExam).toList();
+    final record = item;
+    final answers = record?.answeredCount ?? 0;
+    final correct = record?.correctCount ?? 0;
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(24, 4, 24, 24 + MediaQuery.viewInsetsOf(context).bottom),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-        Text('${day.year}年${day.month}月${day.day}日', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
-        const SizedBox(height: 20),
-        _DetailRow(icon: Icons.edit_note_rounded, label: '回答数', value: '$answers問'),
-        _DetailRow(icon: Icons.gps_fixed_rounded, label: '正答率', value: '${answers == 0 ? 0 : (correct * 100 / answers).round()}%'),
-        _DetailRow(icon: Icons.schedule_rounded, label: '学習時間', value: _duration(duration)),
-        const SizedBox(height: 18),
-        Text('学習内容', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8),
-        if (items.isEmpty) const Text('この日の学習記録はありません') else
-          for (final item in items) ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(child: Icon(_typeIcon(item.type), size: 20)),
-            title: Text(item.type.label),
-            subtitle: Text(item.category.isEmpty ? '${item.answeredCount}問' : '${item.category} ・ ${item.answeredCount}問'),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        4,
+        24,
+        24 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${day.year}年${day.month}月${day.day}日',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
           ),
-        if (exams.isNotEmpty) ...[
-          const Divider(height: 28),
-          Text('模擬試験結果', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          for (final exam in exams) Card(
-            elevation: 0,
-            color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: .55),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            child: ListTile(title: Text('${exam.correctCount} / ${exam.questionCount}問 正解'), trailing: Text('${exam.accuracy}%', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18))),
+          const SizedBox(height: 20),
+          _DetailRow(icon: Icons.edit_note_rounded, label: '回答数', value: '$answers問'),
+          _DetailRow(
+            icon: Icons.gps_fixed_rounded,
+            label: '正答率',
+            value: '${answers == 0 ? 0 : (correct * 100 / answers).round()}%',
           ),
+          _DetailRow(
+            icon: Icons.schedule_rounded,
+            label: '学習時間',
+            value: _duration(Duration(seconds: record?.studySeconds ?? 0)),
+          ),
+          _DetailRow(
+            icon: Icons.assignment_rounded,
+            label: '模擬試験',
+            value: '${record?.examCount ?? 0}回',
+          ),
+          if (record == null) ...[
+            const SizedBox(height: 18),
+            const Text('この日の学習記録はありません'),
+          ],
         ],
-      ]),
+      ),
     );
   }
+}
+
+class _GoalSheet extends StatelessWidget {
+  const _GoalSheet({required this.selectedGoal});
+  final int selectedGoal;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '学習目標',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 16),
+        for (final goal in dailyGoalOptions)
+          ListTile(
+            leading: Icon(
+              goal == selectedGoal
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_off_rounded,
+            ),
+            title: Text('$goal問'),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            onTap: () => Navigator.pop(context, goal),
+          ),
+      ],
+    ),
+  );
 }
 
 class _DetailRow extends StatelessWidget {
@@ -385,8 +464,8 @@ class _ErrorState extends StatelessWidget {
       ]));
 }
 
-int _streak(List<LearningHistory> items) {
-  final days = items.map((item) => DateTime(item.completedAt.year, item.completedAt.month, item.completedAt.day)).toSet();
+int _streak(List<StudyCalendarDay> items) {
+  final days = items.where((item) => item.answeredCount > 0).map((item) => DateTime(item.date.year, item.date.month, item.date.day)).toSet();
   var cursor = DateTime.now();
   cursor = DateTime(cursor.year, cursor.month, cursor.day);
   if (!days.contains(cursor)) cursor = cursor.subtract(const Duration(days: 1));
@@ -406,10 +485,3 @@ String _duration(Duration value) {
   if (minutes > 0) return '$minutes分';
   return '${math.max(0, value.inSeconds)}秒';
 }
-
-IconData _typeIcon(LearningType type) => switch (type) {
-      LearningType.quickQuiz => Icons.flash_on_rounded,
-      LearningType.category => Icons.category_rounded,
-      LearningType.mockExam => Icons.assignment_rounded,
-      LearningType.weaknessReview => Icons.psychology_rounded,
-    };

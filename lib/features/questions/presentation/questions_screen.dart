@@ -8,6 +8,7 @@ import 'package:harikyu_lab/features/questions/data/mistake_question_repository.
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
 import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
 import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
+import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
 
 class QuestionsScreen extends ConsumerStatefulWidget {
@@ -119,6 +120,8 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         );
       }).toList(),
     );
+    final calendarRepository = await ref.read(studyCalendarRepositoryProvider.future);
+    await calendarRepository.addSession(history);
     final historyRepository = await ref.read(learningHistoryRepositoryProvider.future);
     await historyRepository.save(history);
     _startedAt = null;

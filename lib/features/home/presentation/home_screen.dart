@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/constants/app_constants.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
+import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
+import 'package:harikyu_lab/features/learning_history/domain/study_calendar_day.dart';
 import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
 import 'package:harikyu_lab/features/study_statistics/domain/study_statistics.dart';
 
@@ -22,6 +24,19 @@ class HomeScreen extends ConsumerWidget {
     final colors = Theme.of(context).colorScheme;
     final statistics = ref.watch(studyStatisticsProvider).asData?.value ??
         const StudyStatistics();
+    final goal = ref.watch(dailyGoalProvider).asData?.value ?? defaultDailyGoal;
+    final calendar =
+        ref.watch(studyCalendarProvider).asData?.value ??
+        const <StudyCalendarDay>[];
+    final now = DateTime.now();
+    final today = calendar
+        .where(
+          (day) =>
+              day.date.year == now.year &&
+              day.date.month == now.month &&
+              day.date.day == now.day,
+        )
+        .firstOrNull;
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
@@ -52,6 +67,8 @@ class HomeScreen extends ConsumerWidget {
                     Text('合格までの学びを、心地よく続けましょう。', style: TextStyle(color: colors.onSurfaceVariant)),
                     const SizedBox(height: 24),
                     _Stats(statistics: statistics),
+                    const SizedBox(height: 16),
+                    _DailyGoalCard(answered: today?.answeredCount ?? 0, goal: goal),
                     const SizedBox(height: 36),
                     Text('学習メニュー', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 14),
@@ -83,6 +100,44 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _DailyGoalCard extends StatelessWidget {
+  const _DailyGoalCard({required this.answered, required this.goal});
+  final int answered;
+  final int goal;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '今日の目標',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 10),
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: answered.toDouble()),
+          duration: const Duration(milliseconds: 500),
+          builder: (context, value, child) => Text(
+            '${value.round()} / $goal問',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        LinearProgressIndicator(
+          value: goal == 0 ? 0 : (answered / goal).clamp(0.0, 1.0).toDouble(),
+          borderRadius: BorderRadius.circular(20),
+          minHeight: 8,
+        ),
+      ],
+    ),
+  );
 }
 
 class _Stats extends StatelessWidget {

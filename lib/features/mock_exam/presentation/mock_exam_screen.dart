@@ -13,6 +13,7 @@ import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
+import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
 
 const _questionCountPreferenceKey = 'mock_exam_question_count';
@@ -182,8 +183,10 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
         );
       }).toList(),
     );
-    final repository = await ref.read(learningHistoryRepositoryProvider.future);
-    await repository.save(history);
+    final calendarRepository = await ref.read(studyCalendarRepositoryProvider.future);
+    await calendarRepository.addSession(history);
+    final historyRepository = await ref.read(learningHistoryRepositoryProvider.future);
+    await historyRepository.save(history);
   }
 
   Future<void> _handleTimeUp() async {
