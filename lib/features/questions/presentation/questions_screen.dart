@@ -257,7 +257,9 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       );
 
   Widget _question(BuildContext context) {
-    final questions = ref.watch(subjectQuestionsProvider(widget.subject));
+    final questions = widget.favoritesOnly
+        ? ref.watch(allQuestionsProvider)
+        : ref.watch(subjectQuestionsProvider(widget.subject));
     return questions.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => _loadError(error),
@@ -388,6 +390,11 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
               onPressed: () async {
                 final repository = await ref.read(favoriteQuestionRepositoryProvider.future);
                 await repository.toggle(question.id);
+                if (isFavorite) {
+                  debugPrint('Favorite removed: ${question.id}');
+                } else {
+                  debugPrint('Favorite added: ${question.id}');
+                }
                 await ref.read(analyticsServiceProvider).favoriteChanged(
                   added: !isFavorite,
                 );
