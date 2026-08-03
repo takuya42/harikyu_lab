@@ -33,6 +33,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   int _correctCount = 0;
   bool _isAnswering = false;
   List<StudyQuestion>? _sessionQuestions;
+  bool _freeLimitReached = false;
   final Map<String, int> _answers = {};
   DateTime? _startedAt;
   DateTime? _lastAnswerRecordedAt;
@@ -47,15 +48,33 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
 
   Future<void> _start() async {
     final hasProPlan = await ref.read(isProProvider.future);
+    debugPrint('[QuestionsScreen] isProProvider=$hasProPlan');
+    if (hasProPlan) {
+      await _beginStudy();
+      return;
+    }
     if (widget.subject != null && !hasProPlan) {
+      debugPrint(
+        '[QuestionsScreen] show free-limit UI reason=category-requires-pro',
+      );
       if (mounted) await context.push('/pro');
       return;
     }
-    final used = await ref.read(usageLimitProvider.future);
-    if (!hasProPlan && used >= freeDailyQuestionLimit) {
+    final limitReached = await ref
+        .read(usageLimitProvider.notifier)
+        .hasReachedLimit();
+    debugPrint('[QuestionsScreen] UsageLimitService result=$limitReached');
+    if (limitReached) {
+      debugPrint(
+        '[QuestionsScreen] show free-limit UI reason=daily-limit-reached',
+      );
       if (mounted) await context.push('/pro');
       return;
     }
+    await _beginStudy();
+  }
+
+  Future<void> _beginStudy() async {
     final repository = await _statisticsRepository;
     repository.startSession();
     await ref.read(analyticsServiceProvider).startQuiz(
@@ -66,6 +85,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       _isStudying = true;
       _isFinished = false;
       _sessionQuestions = null;
+      _freeLimitReached = false;
       _questionIndex = 0;
       _correctCount = 0;
       _selectedAnswer = null;
@@ -250,37 +270,68 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
                 .toList()
             : items;
         if (_sessionQuestions == null) {
-          final hasProPlan = ref.watch(isProProvider).value ?? false;
-          final session = createStudySession(
-            filteredItems,
-            isPro: hasProPlan,
-          );
-          final used = ref.watch(usageLimitProvider).value ?? 0;
-          final remaining = (freeDailyQuestionLimit - used).clamp(
-            0,
-            freeDailyQuestionLimit,
-          );
-          _sessionQuestions = hasProPlan
-              ? session
-              : session.take(remaining).toList();
+          final proPlan = ref.watch(isProProvider);
+          if (proPlan.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (proPlan.hasError) return _loadError(proPlan.error!);
+          final hasProPlan = proPlan.requireValue;
+          debugPrint('[QuestionsScreen] isProProvider=$hasProPlan');
+
+          // A Pro entitlement must bypass all free-usage reads and UI.
+          if (hasProPlan) {
+            _sessionQuestions = createStudySession(filteredItems, isPro: true);
+          } else {
+            final usage = ref.watch(usageLimitProvider);
+            if (usage.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (usage.hasError) return _loadError(usage.error!);
+            final used = usage.requireValue;
+            final limitReached = used >= freeDailyQuestionLimit;
+            _freeLimitReached = limitReached;
+            debugPrint(
+              '[QuestionsScreen] UsageLimitService result=$limitReached '
+              'used=$used',
+            );
+            final remaining = (freeDailyQuestionLimit - used).clamp(
+              0,
+              freeDailyQuestionLimit,
+            );
+            _sessionQuestions = createStudySession(
+              filteredItems,
+              isPro: false,
+            ).take(remaining).toList();
+          }
         }
         final session = _sessionQuestions!;
         if (session.isEmpty && widget.favoritesOnly) {
           return const Center(child: Text('お気に入りはまだありません'));
         }
-        if (session.isEmpty) {
+        if (session.isEmpty && _freeLimitReached) {
+          debugPrint(
+            '[QuestionsScreen] show free-limit UI reason=daily-limit-reached',
+          );
           return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Text('本日の無料分10問を学習しました。'),
             const SizedBox(height: 16),
             FilledButton(onPressed: () => context.push('/pro'), child: const Text('Pro版で続ける')),
           ]));
         }
-        final question = session[_questionIndex];
-        return RefreshIndicator(
-          onRefresh: _refresh,
-          child: _questionList(context, question, _questionIndex, session.length),
-        );
+        return _buildQuestionSession(context);
       },
+    );
+  }
+
+  Widget _buildQuestionSession(BuildContext context) {
+    final session = _sessionQuestions!;
+    if (session.isEmpty) {
+      return const Center(child: Text('学習できる問題がありません'));
+    }
+    final question = session[_questionIndex];
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: _questionList(context, question, _questionIndex, session.length),
     );
   }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/core/providers/shared_preferences_provider.dart';
 import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
@@ -16,14 +17,18 @@ final usageLimitProvider = AsyncNotifierProvider<UsageLimitService, int>(
 
 class UsageLimitService extends AsyncNotifier<int> {
   late SharedPreferences _preferences;
-  bool _isPro = false;
 
   @override
   Future<int> build() async {
-    _isPro = await ref.watch(isProProvider.future);
-    if (_isPro) return 0;
+    final isPro = await ref.watch(isProProvider.future);
+    if (isPro) {
+      debugPrint('[UsageLimitService] result=0 reason=pro');
+      return 0;
+    }
     _preferences = await ref.watch(sharedPreferencesProvider.future);
-    return _readToday();
+    final used = _readToday();
+    debugPrint('[UsageLimitService] result=$used reason=free-daily-usage');
+    return used;
   }
 
   int _readToday() {
@@ -33,12 +38,36 @@ class UsageLimitService extends AsyncNotifier<int> {
   }
 
   Future<void> recordAnswer() async {
-    if (_isPro) return;
+    final isPro = await ref.read(isProProvider.future);
+    if (isPro) {
+      debugPrint('[UsageLimitService] recordAnswer skipped reason=pro');
+      return;
+    }
+    await future;
     final today = _dateKey(DateTime.now());
     final count = _readToday() + 1;
     await _preferences.setString(_dailyUsageDateKey, today);
     await _preferences.setInt(_dailyQuestionCountKey, count);
     state = AsyncData(count);
+    debugPrint('[UsageLimitService] result=$count reason=answer-recorded');
+  }
+
+  /// Returns whether the free daily limit has been reached.
+  ///
+  /// Pro users always return before any free-limit state is inspected.
+  Future<bool> hasReachedLimit() async {
+    final isPro = await ref.read(isProProvider.future);
+    if (isPro) {
+      debugPrint('[UsageLimitService] limitReached=false reason=pro');
+      return false;
+    }
+    final used = await future;
+    final reached = used >= freeDailyQuestionLimit;
+    debugPrint(
+      '[UsageLimitService] limitReached=$reached used=$used '
+      'limit=$freeDailyQuestionLimit',
+    );
+    return reached;
   }
 }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -20,7 +21,11 @@ class ProPlanRepository {
       .collection('users')
       .doc(uid)
       .snapshots()
-      .map((document) => document.data()?['plan'] == 'pro');
+      .map((document) {
+        final plan = document.data()?['plan'];
+        debugPrint('[ProPlanRepository] Firestore plan=$plan uid=$uid');
+        return plan == 'pro';
+      });
 
   /// This method is only called for a StoreKit purchase delivered by the
   /// in_app_purchase purchase stream.
@@ -44,10 +49,15 @@ final proPlanRepositoryProvider = Provider<ProPlanRepository>(
 final isProProvider = StreamProvider<bool>((ref) async* {
   final user = await ref.watch(authStateProvider.future);
   if (user == null) {
+    debugPrint('[isProProvider] value=false (signed out)');
     yield false;
     return;
   }
-  yield* ref.watch(proPlanRepositoryProvider).watchIsPro(user.uid);
+  await for (final isPro
+      in ref.watch(proPlanRepositoryProvider).watchIsPro(user.uid)) {
+    debugPrint('[isProProvider] value=$isPro');
+    yield isPro;
+  }
 });
 
 class ProAccessState {
