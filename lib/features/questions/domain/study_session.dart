@@ -17,6 +17,7 @@ class StudyQuestion {
 
 List<StudyQuestion> createStudySession(
   List<Question> questions, {
+  required bool isPro,
   Random? random,
   int? questionCount,
 }) {
