@@ -58,7 +58,4 @@ class AnalyticsService {
 
   Future<void> settingsOpened() =>
       _analytics.logEvent(name: 'settings_opened');
-
-  Future<void> subscriptionOpened() =>
-      _analytics.logEvent(name: 'subscription_opened');
 }

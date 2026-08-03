@@ -70,6 +70,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
             'name': name,
             'email': user.email ?? _emailController.text.trim(),
+            'plan': 'free',
             'createdAt': now,
             'updatedAt': now,
           });
