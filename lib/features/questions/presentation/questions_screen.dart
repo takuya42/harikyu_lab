@@ -29,9 +29,11 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   int? _selectedAnswer;
   int _questionIndex = 0;
   int _correctCount = 0;
+  bool _isAnswering = false;
   List<StudyQuestion>? _sessionQuestions;
   final Map<String, int> _answers = {};
   DateTime? _startedAt;
+  DateTime? _lastAnswerRecordedAt;
 
   @override
   void initState() {
@@ -54,26 +56,62 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       _selectedAnswer = null;
       _answers.clear();
       _startedAt = DateTime.now();
+      _lastAnswerRecordedAt = _startedAt;
     });
   }
 
   Future<void> _answer(int index, StudyQuestion question) async {
-    if (_selectedAnswer != null) return;
+    if (_selectedAnswer != null || _isAnswering) return;
+    _isAnswering = true;
     final isCorrect = index == question.correctAnswerIndex;
-    final repository = await _statisticsRepository;
-    await repository.recordAnswer(isCorrect: isCorrect);
-    if (!mounted) return;
-    if (!isCorrect) {
-      ref.read(mistakeQuestionRepositoryProvider.future).then(
-            (repository) => repository.add(question.question.id),
-          );
+    final answeredAt = DateTime.now();
+    final answerStartedAt = _lastAnswerRecordedAt ?? _startedAt ?? answeredAt;
+    try {
+      final repository = await _statisticsRepository;
+      await repository.recordAnswer(isCorrect: isCorrect);
+      await _recordAnswerInCalendar(
+        isCorrect: isCorrect,
+        answeredAt: answeredAt,
+        duration: answeredAt.difference(answerStartedAt),
+      );
+      _lastAnswerRecordedAt = answeredAt;
+      if (!mounted) return;
+      if (!isCorrect) {
+        ref.read(mistakeQuestionRepositoryProvider.future).then(
+              (repository) => repository.add(question.question.id),
+            );
+      }
+      setState(() {
+        _selectedAnswer = index;
+        _answers[question.question.id] = index;
+        if (isCorrect) _correctCount++;
+      });
+    } finally {
+      _isAnswering = false;
     }
-    setState(() {
-      _selectedAnswer = index;
-      _answers[question.question.id] = index;
-      if (isCorrect) _correctCount++;
-    });
   }
+
+  Future<void> _recordAnswerInCalendar({
+    required bool isCorrect,
+    required DateTime answeredAt,
+    required Duration duration,
+  }) => ref.read(studyCalendarRepositoryProvider).recordStudy(
+    LearningHistory(
+      id: '${answeredAt.microsecondsSinceEpoch}',
+      type: widget.mistakesOnly
+          ? LearningType.weaknessReview
+          : widget.subject != null
+          ? LearningType.category
+          : LearningType.quickQuiz,
+      completedAt: answeredAt,
+      questionCount: 1,
+      correctCount: isCorrect ? 1 : 0,
+      unansweredCount: 0,
+      duration: duration,
+      category: widget.subject ?? '',
+      answers: const [],
+    ),
+  );
 
   Future<void> _next(int questionCount) async {
     if (_questionIndex == questionCount - 1) {
@@ -120,11 +158,10 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         );
       }).toList(),
     );
-    final calendarRepository = ref.read(studyCalendarRepositoryProvider);
-    await calendarRepository.recordStudy(history);
     final historyRepository = await ref.read(learningHistoryRepositoryProvider.future);
     await historyRepository.save(history);
     _startedAt = null;
+    _lastAnswerRecordedAt = null;
   }
 
   @override
