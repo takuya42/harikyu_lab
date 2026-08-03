@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:harikyu_lab/core/constants/question_sheet_constants.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
+import 'package:harikyu_lab/features/questions/domain/subjects.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,6 +14,49 @@ q001,解剖学,基礎,"カンマ,を含む問題",選択1,選択2,選択3,選択
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('カテゴリのgidからGoogle SheetsのCSV URLを組み立てる', () {
+    expect(
+      categoryCsvUrl('衛生学・公衆衛生学'),
+      'https://docs.google.com/spreadsheets/d/$spreadsheetId/'
+      'export?format=csv&gid=1451436983',
+    );
+    expect(
+      () => categoryCsvUrl('未設定カテゴリ'),
+      throwsA(isA<StateError>()),
+    );
+  });
+
+  test('全カテゴリのgidを定数で管理する', () {
+    expect(questionSheetGids.keys, containsAll(subjects));
+    expect(questionSheetGids.values, everyElement(isNotEmpty));
+  });
+
+  test('gid、CSV URL、取得件数をdebugPrintする', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final messages = <String>[];
+    final originalDebugPrint = debugPrint;
+    debugPrint = (message, {wrapWidth}) => messages.add(message ?? '');
+    try {
+      final repository = GoogleSheetsQuestionRepository(
+        client: MockClient((_) async => http.Response(_csv, 200)),
+        preferences: preferences,
+        sheetUrl: 'https://example.com/export?format=csv&gid=123',
+        gid: '123',
+      );
+      await repository.refresh();
+    } finally {
+      debugPrint = originalDebugPrint;
+    }
+
+    expect(messages, contains('CSV gid: 123'));
+    expect(
+      messages,
+      contains('CSV URL: https://example.com/export?format=csv&gid=123'),
+    );
+    expect(messages, contains('CSV fetched count: 1'));
+  });
 
   test('スプレッドシートのCSVをQuestionへ変換してキャッシュする', () async {
     SharedPreferences.setMockInitialValues({});
