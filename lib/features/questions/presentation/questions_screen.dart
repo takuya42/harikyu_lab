@@ -250,8 +250,11 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
                 .toList()
             : items;
         if (_sessionQuestions == null) {
-          final session = createStudySession(filteredItems);
           final hasProPlan = ref.watch(isProProvider).value ?? false;
+          final session = createStudySession(
+            filteredItems,
+            isPro: hasProPlan,
+          );
           final used = ref.watch(usageLimitProvider).value ?? 0;
           final remaining = (freeDailyQuestionLimit - used).clamp(
             0,

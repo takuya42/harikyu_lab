@@ -112,12 +112,22 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     super.dispose();
   }
 
-  Future<void> _startAnimated(List<Question> questions, int count) async {
+  Future<void> _startAnimated(
+    List<Question> questions,
+    int count, {
+    required bool isPro,
+  }) async {
     if (_starting) return;
     setState(() => _starting = true);
     await Future<void>.delayed(const Duration(milliseconds: 240));
     if (!mounted) return;
-    _start(createStudySession(questions, questionCount: count));
+    _start(
+      createStudySession(
+        questions,
+        questionCount: count,
+        isPro: isPro,
+      ),
+    );
   }
 
   void _start(List<StudyQuestion> questions) {
@@ -324,7 +334,13 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
                 scale: _starting ? .96 : 1,
                 duration: const Duration(milliseconds: 240),
                 child: FilledButton.icon(
-                  onPressed: _starting ? null : () => _startAnimated(questions, requested),
+                  onPressed: _starting
+                      ? null
+                      : () => _startAnimated(
+                          questions,
+                          requested,
+                          isPro: hasProPlan,
+                        ),
                   icon: const Icon(Icons.play_arrow_rounded, size: 24),
                   label: const Text('試験を始める'),
                 ),
@@ -403,6 +419,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
       ]))))));
 
   Widget _result() {
+    final isPro = ref.watch(isProProvider).value ?? false;
     final total = _session!.length;
     final unanswered = total - _answeredCount;
     final accuracy = total == 0 ? 0 : (_correctCount * 100 / total).round();
@@ -450,7 +467,22 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
         padding: const EdgeInsets.fromLTRB(0, 14, 0, 4),
         decoration: BoxDecoration(color: colors.surface, border: Border(top: BorderSide(color: colors.outlineVariant.withValues(alpha: .55)))),
         child: Row(children: [
-          Expanded(child: FilledButton.tonalIcon(onPressed: () => _start(createStudySession(_availableQuestions!, questionCount: _effectiveQuestionCount(_availableQuestions!.length))), icon: const Icon(Icons.replay_rounded), label: const Text('もう一度挑戦'))),
+          Expanded(
+            child: FilledButton.tonalIcon(
+              onPressed: () => _start(
+                createStudySession(
+                  _availableQuestions!,
+                  questionCount: _effectiveQuestionCount(
+                    _availableQuestions!.length,
+                    isPro: isPro,
+                  ),
+                  isPro: isPro,
+                ),
+              ),
+              icon: const Icon(Icons.replay_rounded),
+              label: const Text('もう一度挑戦'),
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(child: FilledButton.icon(onPressed: () => context.go('/home'), icon: const Icon(Icons.home_rounded), label: const Text('ホームへ戻る'))),
         ]),

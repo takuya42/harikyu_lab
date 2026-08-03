@@ -11,7 +11,11 @@ void main() {
       Question(id: '2', text: '問題2', choices: ['誤り1', '誤り2', '正解2', '誤り3'], correctAnswerIndex: 2),
     ];
 
-    final session = createStudySession(questions, random: Random(7));
+    final session = createStudySession(
+      questions,
+      isPro: false,
+      random: Random(7),
+    );
 
     expect(session, hasLength(2));
     expect(questions.map((item) => item.id), ['1', '2']);
@@ -34,6 +38,7 @@ void main() {
 
     final session = createStudySession(
       questions,
+      isPro: true,
       random: Random(1),
       questionCount: 100,
     );
