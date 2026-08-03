@@ -183,54 +183,103 @@ Future<void> _showMembershipDialog(
         );
         return FadeTransition(
           opacity: curved,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.94, end: 1).animate(curved),
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.08),
+              end: Offset.zero,
+            ).animate(curved),
             child: child,
           ),
         );
       },
-      pageBuilder: (dialogContext, animation, secondaryAnimation) => AlertDialog(
-        title: Text(isPro ? 'Pro会員' : '無料プラン'),
-        content: SingleChildScrollView(
-          child: isPro
-              ? const Text(
-                  'ありがとうございます！\n\n'
-                  '現在すべての学習機能をご利用いただけます。\n\n'
-                  '今後追加されるPro限定機能も\n無料でご利用いただけます。',
-                )
-              : const Column(
+      pageBuilder: (dialogContext, animation, secondaryAnimation) => Align(
+        alignment: Alignment.bottomCenter,
+        child: Material(
+          color: Theme.of(context).colorScheme.surface,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: SafeArea(
+            top: false,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('・1日10問まで学習できます'),
-                    Text('・カテゴリ学習が利用できます'),
-                    Text('・学習履歴・カレンダーを利用できます'),
-                    SizedBox(height: 20),
-                    Text(
-                      'Pro版では',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    Center(
+                      child: Container(
+                        width: 32,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant
+                              .withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
                     ),
-                    SizedBox(height: 8),
-                    Text('・問題数無制限'),
-                    Text('・今後追加されるすべての機能'),
-                    Text('・優先アップデート'),
+                    const SizedBox(height: 20),
+                    Text(
+                      isPro ? 'Pro会員' : '無料プラン',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (isPro) ...[
+                      const Text(
+                        'ありがとうございます！\n\n'
+                        '現在、すべての学習機能をご利用いただけます。',
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('・一問一答：無制限'),
+                      const Text('・学習カレンダー：全期間表示'),
+                      const Text('・模擬試験：すべて利用可能'),
+                      const Text('・今後追加されるPro限定機能も無料で利用できます。'),
+                    ] else ...[
+                      const Text('・一問一答：1日10問まで'),
+                      const Text('・カテゴリ学習が利用できます'),
+                      const Text('・学習カレンダーは過去7日間まで表示'),
+                      const Text('・模擬試験は20問・20分を1日1回まで'),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Pro版',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('・一問一答が無制限'),
+                      const Text('・学習カレンダーを全期間表示'),
+                      const Text('・模擬試験をすべて利用可能'),
+                      const Text('・今後追加されるPro限定機能を利用可能'),
+                    ],
+                    const SizedBox(height: 24),
+                    if (!isPro) ...[
+                      FilledButton(
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                          context.push('/pro');
+                        },
+                        child: const Text('Pro版を見る'),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: const Text('閉じる'),
+                    ),
                   ],
                 ),
-        ),
-        actions: [
-          if (!isPro)
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                context.push('/pro');
-              },
-              child: const Text('Pro版を見る'),
+              ),
             ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('閉じる'),
           ),
-        ],
+        ),
       ),
     );
 
