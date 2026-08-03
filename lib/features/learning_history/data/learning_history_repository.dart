@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/core/providers/shared_preferences_provider.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
@@ -16,8 +15,7 @@ abstract interface class LearningHistoryRepository {
 }
 
 /// Persists complete sessions per signed-in user. This repository keeps the
-/// feature usable offline and can be replaced by a Firestore implementation
-/// without affecting the presentation layer.
+/// answer details on the device rather than sending them to Firestore.
 class LocalLearningHistoryRepository implements LearningHistoryRepository {
   LocalLearningHistoryRepository(this._preferences, {String? userId})
     : _key = 'learning_history_v1_${userId == null ? 'guest' : 'user_$userId'}' {
@@ -70,76 +68,21 @@ class LocalLearningHistoryRepository implements LearningHistoryRepository {
   void dispose() => _controller.close();
 }
 
-/// Stores completed learning sessions below `users/{uid}/studyDays`.
-///
-/// A session is intentionally kept as a separate document. This makes writes
-/// idempotent and lets the calendar aggregate every kind of learning activity
-/// without losing the detail needed by the day sheet.
-class FirestoreLearningHistoryRepository implements LearningHistoryRepository {
-  FirestoreLearningHistoryRepository(this._firestore, this._userId);
+final learningHistoryRepositoryProvider =
+    FutureProvider<LearningHistoryRepository>((ref) async {
+      final preferences = await ref.watch(sharedPreferencesProvider.future);
+      final user = await ref.watch(authStateProvider.future);
+      final LearningHistoryRepository repository =
+          LocalLearningHistoryRepository(preferences, userId: user?.uid);
+      ref.onDispose(repository.dispose);
+      return repository;
+    });
 
-  final FirebaseFirestore _firestore;
-  final String _userId;
-
-  CollectionReference<Map<String, dynamic>> get _sessions => _firestore
-      .collection('users')
-      .doc(_userId)
-      .collection('studyDays');
-
-  @override
-  Stream<List<LearningHistory>> watch() => _sessions
-      .orderBy('completedAt', descending: true)
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map(_fromDocument).toList());
-
-  LearningHistory _fromDocument(
-    QueryDocumentSnapshot<Map<String, dynamic>> document,
-  ) {
-    final data = Map<String, dynamic>.from(document.data());
-    final completedAt = data['completedAt'];
-    data['id'] = document.id;
-    data['completedAt'] = completedAt is Timestamp
-        ? completedAt.toDate().toIso8601String()
-        : completedAt;
-    return LearningHistory.fromJson(data);
-  }
-
-  @override
-  Future<void> save(LearningHistory history) async {
-    final data = history.toJson()..remove('id');
-    data['completedAt'] = Timestamp.fromDate(history.completedAt);
-    data['studyDate'] =
-        '${history.completedAt.year.toString().padLeft(4, '0')}-'
-        '${history.completedAt.month.toString().padLeft(2, '0')}-'
-        '${history.completedAt.day.toString().padLeft(2, '0')}';
-    await _sessions.doc(history.id).set(data);
-  }
-
-  @override
-  Future<void> refresh() async => _sessions.limit(1).get();
-
-  @override
-  void dispose() {}
-}
-
-final firebaseFirestoreProvider = Provider<FirebaseFirestore>(
-  (ref) => FirebaseFirestore.instance,
+final learningHistoryProvider = StreamProvider<List<LearningHistory>>(
+  (ref) async* {
+    final repository = await ref.watch(
+      learningHistoryRepositoryProvider.future,
+    );
+    yield* repository.watch();
+  },
 );
-
-final learningHistoryRepositoryProvider = FutureProvider<LearningHistoryRepository>((ref) async {
-  final preferences = await ref.watch(sharedPreferencesProvider.future);
-  final user = await ref.watch(authStateProvider.future);
-  final LearningHistoryRepository repository = user == null
-      ? LocalLearningHistoryRepository(preferences)
-      : FirestoreLearningHistoryRepository(
-          ref.watch(firebaseFirestoreProvider),
-          user.uid,
-        );
-  ref.onDispose(repository.dispose);
-  return repository;
-});
-
-final learningHistoryProvider = StreamProvider<List<LearningHistory>>((ref) async* {
-  final repository = await ref.watch(learningHistoryRepositoryProvider.future);
-  yield* repository.watch();
-});
