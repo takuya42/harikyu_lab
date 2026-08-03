@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:harikyu_lab/core/providers/firebase_firestore_provider.dart';
 import 'package:harikyu_lab/core/providers/shared_preferences_provider.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -79,10 +80,6 @@ class SettingsService {
     }
   }
 }
-
-final firebaseFirestoreProvider = Provider<FirebaseFirestore>(
-  (ref) => FirebaseFirestore.instance,
-);
 
 final settingsServiceProvider = FutureProvider<SettingsService>((ref) async {
   return SettingsService(

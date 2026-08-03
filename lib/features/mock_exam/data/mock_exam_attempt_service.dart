@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:harikyu_lab/core/providers/firebase_firestore_provider.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 
