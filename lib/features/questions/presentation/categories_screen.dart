@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/questions/domain/subjects.dart';
+import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
 
 class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
@@ -52,6 +53,10 @@ class CategoriesScreen extends ConsumerWidget {
                       trailing:
                           const Icon(Icons.chevron_right_rounded, size: 28),
                       onTap: () async {
+                        if (!(ref.read(proAccessProvider).value?.isPro ?? false)) {
+                          await context.push('/pro');
+                          return;
+                        }
                         await ref.read(analyticsServiceProvider).categorySelected(subjects[index]);
                         if (context.mounted) {
                           context.go(Uri(path: '/questions', queryParameters: {'subject': subjects[index]}).toString());
