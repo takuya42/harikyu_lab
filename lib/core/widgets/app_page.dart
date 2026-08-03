@@ -6,20 +6,24 @@ class AppPage extends StatelessWidget {
     required this.title,
     required this.child,
     this.leading,
+    this.backgroundColor,
     super.key,
   });
 
   final String title;
   final Widget child;
   final Widget? leading;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor:
+            backgroundColor ?? Theme.of(context).scaffoldBackgroundColor,
         surfaceTintColor: Colors.transparent,
         leading: leading,
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
