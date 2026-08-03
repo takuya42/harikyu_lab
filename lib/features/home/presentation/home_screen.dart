@@ -5,8 +5,6 @@ import 'package:harikyu_lab/core/constants/app_constants.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/study_calendar_day.dart';
-import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
-import 'package:harikyu_lab/features/study_statistics/domain/study_statistics.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -48,8 +46,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final statistics = ref.watch(studyStatisticsProvider).asData?.value ??
-        const StudyStatistics();
+    final summary = ref.watch(homeSummaryProvider);
+    final streakDays = ref.watch(studyStreakProvider);
     final goal = ref.watch(dailyGoalProvider).asData?.value ?? defaultDailyGoal;
     final calendar =
         ref.watch(studyCalendarProvider).asData?.value ??
@@ -97,8 +95,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     Text('合格までの学びを、心地よく続けましょう。', style: TextStyle(color: colors.onSurfaceVariant)),
                     const SizedBox(height: 24),
                     _Stats(
-                      statistics: statistics,
-                      streakDays: calculateStudyStreak(calendar),
+                      summary: summary,
+                      streakDays: streakDays,
                     ),
                     const SizedBox(height: 16),
                     _DailyGoalCard(answered: today?.answeredCount ?? 0, goal: goal),
@@ -174,15 +172,20 @@ class _DailyGoalCard extends StatelessWidget {
 }
 
 class _Stats extends StatelessWidget {
-  const _Stats({required this.statistics, required this.streakDays});
-  final StudyStatistics statistics;
+  const _Stats({required this.summary, required this.streakDays});
+  final StudyCalendarSummary summary;
   final int streakDays;
   @override
   Widget build(BuildContext context) {
     final stats = [
-      ('総回答数', '${statistics.totalAnswered}問', Icons.schedule_outlined),
+      ('総回答数', '${summary.totalAnswered}問', Icons.edit_note_outlined),
+      ('正答率', '${summary.accuracy}%', Icons.check_circle_outline),
+      (
+        '学習時間',
+        '${(summary.studySeconds / 60).ceil()}分',
+        Icons.schedule_outlined,
+      ),
       ('連続', '$streakDays日', Icons.local_fire_department_outlined),
-      ('正答率', '${statistics.accuracy}%', Icons.check_circle_outline),
     ];
     return AppCard(padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8), child: Row(
       children: [for (var i = 0; i < stats.length; i++) ...[

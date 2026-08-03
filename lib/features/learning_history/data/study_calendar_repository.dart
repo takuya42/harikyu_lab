@@ -168,6 +168,42 @@ final studyCalendarProvider = StreamProvider<List<StudyCalendarDay>>((ref) async
   yield* repository.watch();
 });
 
+class StudyCalendarSummary {
+  const StudyCalendarSummary({
+    this.totalAnswered = 0,
+    this.correctAnswered = 0,
+    this.studySeconds = 0,
+    this.examCount = 0,
+  });
+
+  final int totalAnswered;
+  final int correctAnswered;
+  final int studySeconds;
+  final int examCount;
+
+  int get accuracy =>
+      totalAnswered == 0 ? 0 : (correctAnswered * 100 / totalAnswered).round();
+}
+
+final homeSummaryProvider = Provider<StudyCalendarSummary>((ref) {
+  final days =
+      ref.watch(studyCalendarProvider).asData?.value ??
+      const <StudyCalendarDay>[];
+  return StudyCalendarSummary(
+    totalAnswered: days.fold(0, (sum, day) => sum + day.answeredCount),
+    correctAnswered: days.fold(0, (sum, day) => sum + day.correctCount),
+    studySeconds: days.fold(0, (sum, day) => sum + day.studySeconds),
+    examCount: days.fold(0, (sum, day) => sum + day.examCount),
+  );
+});
+
+final studyStreakProvider = Provider<int>((ref) {
+  final days =
+      ref.watch(studyCalendarProvider).asData?.value ??
+      const <StudyCalendarDay>[];
+  return calculateStudyStreak(days);
+});
+
 final dailyGoalProvider = StreamProvider<int>((ref) async* {
   final repository = ref.watch(studyCalendarRepositoryProvider);
   yield* repository.watchDailyGoal();

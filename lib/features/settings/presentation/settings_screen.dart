@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/constants/app_constants.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
+import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
+import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/questions/data/favorite_question_repository.dart';
 import 'package:harikyu_lab/features/questions/data/mistake_question_repository.dart';
 import 'package:harikyu_lab/features/settings/data/settings_service.dart';
@@ -180,6 +182,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.invalidate(mistakeQuestionIdsProvider);
       ref.invalidate(studyStatisticsRepositoryProvider);
       ref.invalidate(studyStatisticsProvider);
+      ref.invalidate(learningHistoryRepositoryProvider);
+      ref.invalidate(learningHistoryProvider);
+      ref.invalidate(studyCalendarRepositoryProvider);
+      ref.invalidate(studyCalendarProvider);
+      ref.invalidate(homeSummaryProvider);
+      ref.invalidate(studyStreakProvider);
+      ref.invalidate(dailyGoalProvider);
       _showMessage('学習データを初期化しました。');
     });
   }
