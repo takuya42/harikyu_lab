@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui' show FontFeature;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +9,7 @@ import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/mock_exam/application/exam_timer_controller.dart';
+import 'package:harikyu_lab/features/mock_exam/data/mock_exam_attempt_service.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
@@ -22,15 +22,11 @@ import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
 const _questionCountPreferenceKey = 'mock_exam_question_count';
 const _timeLimitPreferenceKey = 'mock_exam_time_limit_minutes';
 const _questionCountOptions = [20, 50, 100, 0];
-const _debugTimeLimitValue = 10;
-const _timeLimitOptions = [if (kDebugMode) _debugTimeLimitValue, 0, 20, 40, 60, 90];
+const _timeLimitOptions = [20, 40, 60, 90, 0];
 
-Duration _timeLimitDuration(int value) => value == _debugTimeLimitValue && kDebugMode
-    ? const Duration(seconds: 10)
-    : Duration(minutes: value);
+Duration _timeLimitDuration(int value) => Duration(minutes: value);
 
 String _timeLimitLabel(int value) {
-  if (value == _debugTimeLimitValue && kDebugMode) return '10秒（開発用）';
   return value == 0 ? '制限なし' : '$value分';
 }
 
@@ -55,7 +51,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
   bool _finished = false;
   bool _starting = false;
   int _questionCount = 20;
-  int _timeLimitMinutes = 0;
+  int _timeLimitMinutes = 20;
   DateTime? _startedAt;
 
   @override
@@ -86,11 +82,39 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     });
   }
 
-  Future<void> _selectQuestionCount(int? value) async {
+  Future<void> _showProRestriction() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pro版で利用できます'),
+        content: const Text(
+          '・50問\n'
+          '・100問\n'
+          '・全問題\n'
+          '・時間設定の変更\n'
+          '・1日何度でも受験可能',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('閉じる'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              context.push('/pro');
+            },
+            child: const Text('Pro版を見る'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _selectQuestionCount(int? value, {required bool isPro}) async {
     if (value == null) return;
-    final hasProPlan = await ref.read(isProProvider.future);
-    if (!hasProPlan && value != freeMockExamQuestionLimit) {
-      await context.push('/pro');
+    if (!isPro && value != freeMockExamQuestionLimit) {
+      await _showProRestriction();
       return;
     }
     setState(() => _questionCount = value);
@@ -98,8 +122,12 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     await preferences.setInt(_questionCountPreferenceKey, value);
   }
 
-  Future<void> _selectTimeLimit(int? value) async {
+  Future<void> _selectTimeLimit(int? value, {required bool isPro}) async {
     if (value == null) return;
+    if (!isPro && value != 20) {
+      await _showProRestriction();
+      return;
+    }
     setState(() => _timeLimitMinutes = value);
     final preferences = await SharedPreferences.getInstance();
     await preferences.setInt(_timeLimitPreferenceKey, value);
@@ -118,7 +146,22 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     required bool isPro,
   }) async {
     if (_starting) return;
-    setState(() => _starting = true);
+    setState(() {
+      _starting = true;
+      if (!isPro) {
+        _questionCount = freeMockExamQuestionLimit;
+        _timeLimitMinutes = 20;
+      }
+    });
+    final canStart = await ref.read(mockExamAttemptServiceProvider).tryStart(
+      isPro: isPro,
+    );
+    if (!mounted) return;
+    if (!canStart) {
+      setState(() => _starting = false);
+      await _showProRestriction();
+      return;
+    }
     await Future<void>.delayed(const Duration(milliseconds: 240));
     if (!mounted) return;
     _start(
@@ -321,7 +364,15 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
             const SizedBox(height: 10),
             Text('全問題から重複なく$count問を出題します。\n問題と選択肢の順番は毎回変わります。', textAlign: TextAlign.center, style: TextStyle(height: 1.6, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 26),
-            _ExamSettingsCard(questionCount: hasProPlan ? _questionCount : freeMockExamQuestionLimit, timeLimitMinutes: _timeLimitMinutes, onQuestionCountChanged: _selectQuestionCount, onTimeLimitChanged: _selectTimeLimit),
+            _ExamSettingsCard(
+              questionCount: hasProPlan ? _questionCount : freeMockExamQuestionLimit,
+              timeLimitMinutes: hasProPlan ? _timeLimitMinutes : 20,
+              isPro: hasProPlan,
+              onQuestionCountChanged: (value) =>
+                  _selectQuestionCount(value, isPro: hasProPlan),
+              onTimeLimitChanged: (value) =>
+                  _selectTimeLimit(value, isPro: hasProPlan),
+            ),
             if (!hasProPlan) ...[
               const SizedBox(height: 12),
               TextButton.icon(onPressed: () => context.push('/pro'), icon: const Icon(Icons.workspace_premium_outlined), label: const Text('Pro版で模擬試験を無制限に')),
@@ -537,9 +588,10 @@ class _PressableChoiceState extends State<_PressableChoice> {
 }
 
 class _ExamSettingsCard extends StatelessWidget {
-  const _ExamSettingsCard({required this.questionCount, required this.timeLimitMinutes, required this.onQuestionCountChanged, required this.onTimeLimitChanged});
+  const _ExamSettingsCard({required this.questionCount, required this.timeLimitMinutes, required this.isPro, required this.onQuestionCountChanged, required this.onTimeLimitChanged});
   final int questionCount;
   final int timeLimitMinutes;
+  final bool isPro;
   final ValueChanged<int?> onQuestionCountChanged;
   final ValueChanged<int?> onTimeLimitChanged;
 
@@ -547,20 +599,21 @@ class _ExamSettingsCard extends StatelessWidget {
   Widget build(BuildContext context) => AppCard(padding: const EdgeInsets.all(22), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [Container(padding: const EdgeInsets.all(9), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(12)), child: Icon(Icons.tune_rounded, size: 22, color: Theme.of(context).colorScheme.primary)), const SizedBox(width: 12), Text('試験設定', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900))]),
         const SizedBox(height: 20),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: _SettingField(icon: Icons.quiz_outlined, label: '問題数', value: questionCount, items: _questionCountOptions, itemLabel: (value) => value == 0 ? '全問題' : '$value問', onChanged: onQuestionCountChanged)), const SizedBox(width: 12), Expanded(child: _SettingField(icon: Icons.timer_outlined, label: '制限時間', value: timeLimitMinutes, items: _timeLimitOptions, itemLabel: _timeLimitLabel, onChanged: onTimeLimitChanged))]),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: _SettingField(icon: Icons.quiz_outlined, label: '問題数', value: questionCount, items: _questionCountOptions, itemLabel: (value) => value == 0 ? '全問題' : '$value問', isLocked: (value) => !isPro && value != 20, onChanged: onQuestionCountChanged)), const SizedBox(width: 12), Expanded(child: _SettingField(icon: Icons.timer_outlined, label: '制限時間', value: timeLimitMinutes, items: _timeLimitOptions, itemLabel: _timeLimitLabel, isLocked: (value) => !isPro && value != 20, onChanged: onTimeLimitChanged))]),
       ]));
 }
 
 class _SettingField extends StatelessWidget {
-  const _SettingField({required this.icon, required this.label, required this.value, required this.items, required this.itemLabel, required this.onChanged});
+  const _SettingField({required this.icon, required this.label, required this.value, required this.items, required this.itemLabel, required this.isLocked, required this.onChanged});
   final IconData icon;
   final String label;
   final int value;
   final List<int> items;
   final String Function(int) itemLabel;
+  final bool Function(int) isLocked;
   final ValueChanged<int?> onChanged;
   @override
-  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 7), Flexible(child: Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800)))]), const SizedBox(height: 9), DropdownButtonFormField<int>(initialValue: value, isExpanded: true, borderRadius: BorderRadius.circular(18), decoration: InputDecoration(filled: true, fillColor: Theme.of(context).colorScheme.surfaceContainerLowest, contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 15), constraints: const BoxConstraints(minHeight: 54), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant))), items: [for (final item in items) DropdownMenuItem(value: item, child: Text(itemLabel(item), overflow: TextOverflow.ellipsis))], onChanged: onChanged)]);
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 7), Flexible(child: Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800)))]), const SizedBox(height: 9), DropdownButtonFormField<int>(initialValue: value, isExpanded: true, borderRadius: BorderRadius.circular(18), decoration: InputDecoration(filled: true, fillColor: Theme.of(context).colorScheme.surfaceContainerLowest, contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 15), constraints: const BoxConstraints(minHeight: 54), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant))), items: [for (final item in items) DropdownMenuItem(value: item, child: Row(children: [Expanded(child: Text(itemLabel(item), overflow: TextOverflow.ellipsis, style: isLocked(item) ? TextStyle(color: Theme.of(context).disabledColor) : null)), if (isLocked(item)) Icon(Icons.lock_rounded, size: 16, color: Theme.of(context).disabledColor)]))], onChanged: onChanged)]);
 }
 
 class _ReviewLine extends StatelessWidget {
