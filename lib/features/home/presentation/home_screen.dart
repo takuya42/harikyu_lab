@@ -224,7 +224,7 @@ class _StudyCard extends StatelessWidget {
   final _StudyItem item;
   @override
   Widget build(BuildContext context) => AppCard(
-    onTap: () => item.location == '/categories'
+    onTap: () => item.location == '/categories' || item.location == '/favorites'
         ? context.push(item.location)
         : context.go(item.location),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

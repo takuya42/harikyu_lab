@@ -12,11 +12,7 @@ class CategoriesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => AppPage(
         title: 'カテゴリ',
-        leading: IconButton(
-          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
-        ),
+        leading: BackButton(onPressed: () => context.pop()),
         child: ListView(
           children: [
             const SizedBox(height: 8),
@@ -59,7 +55,7 @@ class CategoriesScreen extends ConsumerWidget {
                         }
                         await ref.read(analyticsServiceProvider).categorySelected(subjects[index]);
                         if (context.mounted) {
-                          context.go(Uri(path: '/questions', queryParameters: {'subject': subjects[index]}).toString());
+                          context.push(Uri(path: '/questions', queryParameters: {'subject': subjects[index]}).toString());
                         }
                       },
                     ),

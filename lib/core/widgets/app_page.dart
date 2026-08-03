@@ -20,6 +20,7 @@ class AppPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
+        automaticallyImplyLeading: true,
         elevation: 0,
         scrolledUnderElevation: 0,
         backgroundColor:
