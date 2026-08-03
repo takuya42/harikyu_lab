@@ -209,6 +209,9 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   @override
   Widget build(BuildContext context) => AppPage(
         title: widget.favoritesOnly ? 'お気に入り' : widget.subject ?? '一問一答',
+        leading: widget.favoritesOnly || widget.subject != null
+            ? BackButton(onPressed: () => context.pop())
+            : null,
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 260),
           child: _isFinished
