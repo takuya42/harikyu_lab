@@ -17,6 +17,10 @@ class AppPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent,
         leading: leading,
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
       ),
