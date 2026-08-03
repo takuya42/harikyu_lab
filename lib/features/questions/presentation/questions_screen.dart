@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/data/favorite_question_repository.dart';
-import 'package:harikyu_lab/features/questions/data/mistake_question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
 import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
 import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
@@ -12,11 +12,10 @@ import 'package:harikyu_lab/features/learning_history/data/study_calendar_reposi
 import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
 
 class QuestionsScreen extends ConsumerStatefulWidget {
-  const QuestionsScreen({super.key, this.subject, this.favoritesOnly = false, this.mistakesOnly = false});
+  const QuestionsScreen({super.key, this.subject, this.favoritesOnly = false});
 
   final String? subject;
   final bool favoritesOnly;
-  final bool mistakesOnly;
 
   @override
   ConsumerState<QuestionsScreen> createState() => _QuestionsScreenState();
@@ -46,6 +45,9 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   Future<void> _start() async {
     final repository = await _statisticsRepository;
     repository.startSession();
+    await ref.read(analyticsServiceProvider).startQuiz(
+      quizType: widget.subject == null ? 'quick_quiz' : 'category',
+    );
     if (!mounted) return;
     setState(() {
       _isStudying = true;
@@ -69,6 +71,10 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     try {
       final repository = await _statisticsRepository;
       await repository.recordAnswer(isCorrect: isCorrect);
+      await ref.read(analyticsServiceProvider).questionAnswered(
+        questionId: question.question.id,
+        isCorrect: isCorrect,
+      );
       await _recordAnswerInCalendar(
         isCorrect: isCorrect,
         answeredAt: answeredAt,
@@ -76,11 +82,6 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       );
       _lastAnswerRecordedAt = answeredAt;
       if (!mounted) return;
-      if (!isCorrect) {
-        ref.read(mistakeQuestionRepositoryProvider.future).then(
-              (repository) => repository.add(question.question.id),
-            );
-      }
       setState(() {
         _selectedAnswer = index;
         _answers[question.question.id] = index;
@@ -98,9 +99,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   }) => ref.read(studyCalendarRepositoryProvider).recordStudy(
     LearningHistory(
       id: '${answeredAt.microsecondsSinceEpoch}',
-      type: widget.mistakesOnly
-          ? LearningType.weaknessReview
-          : widget.subject != null
+      type: widget.subject != null
           ? LearningType.category
           : LearningType.quickQuiz,
       completedAt: answeredAt,
@@ -118,6 +117,11 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       final repository = await _statisticsRepository;
       await repository.endSession();
       await _saveHistory();
+      await ref.read(analyticsServiceProvider).finishQuiz(
+        quizType: widget.subject == null ? 'quick_quiz' : 'category',
+        questionCount: questionCount,
+        correctCount: _correctCount,
+      );
       if (!mounted) return;
       setState(() => _isFinished = true);
       return;
@@ -133,9 +137,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     final startedAt = _startedAt;
     if (questions == null || startedAt == null) return;
     final completedAt = DateTime.now();
-    final type = widget.mistakesOnly
-        ? LearningType.weaknessReview
-        : widget.subject != null
+    final type = widget.subject != null
         ? LearningType.category
         : LearningType.quickQuiz;
     final history = LearningHistory(
@@ -172,7 +174,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
 
   @override
   Widget build(BuildContext context) => AppPage(
-        title: widget.mistakesOnly ? '弱点復習' : widget.favoritesOnly ? 'お気に入り' : widget.subject ?? '一問一答',
+        title: widget.favoritesOnly ? 'お気に入り' : widget.subject ?? '一問一答',
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 260),
           child: _isFinished
@@ -190,9 +192,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
           Icon(Icons.bolt_rounded, size: 64, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 24),
           Text(
-            widget.mistakesOnly
-                ? '間違えた問題をまとめて復習'
-                : widget.favoritesOnly
+            widget.favoritesOnly
                 ? 'お気に入りをまとめて復習'
                 : widget.subject == null
                     ? 'すきま時間に知識を確認'
@@ -207,13 +207,11 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
             style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 32),
-          if ((widget.favoritesOnly &&
-                  (ref.watch(favoriteQuestionIdsProvider).asData?.value.isEmpty ?? false)) ||
-              (widget.mistakesOnly &&
-                  (ref.watch(mistakeQuestionIdsProvider).asData?.value.isEmpty ?? false)))
+          if (widget.favoritesOnly &&
+              (ref.watch(favoriteQuestionIdsProvider).asData?.value.isEmpty ?? false))
             Padding(
               padding: const EdgeInsets.only(top: 20),
-              child: Text(widget.mistakesOnly ? 'まだ間違えた問題はありません' : 'お気に入りはまだありません',
+              child: const Text('お気に入りはまだありません',
                   textAlign: TextAlign.center),
             )
           else
@@ -228,16 +226,10 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       error: (error, _) => _loadError(error),
       data: (items) {
         final favoriteIds = ref.watch(favoriteQuestionIdsProvider);
-        final mistakeIds = ref.watch(mistakeQuestionIdsProvider);
         if (widget.favoritesOnly && favoriteIds.isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (widget.mistakesOnly && mistakeIds.isLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final filteredItems = widget.mistakesOnly
-            ? items.where((question) => mistakeIds.asData?.value.contains(question.id) ?? false).toList()
-            : widget.favoritesOnly
+        final filteredItems = widget.favoritesOnly
             ? items
                 .where((question) =>
                     favoriteIds.asData?.value.contains(question.id) ?? false)
@@ -247,8 +239,8 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
           _sessionQuestions = createStudySession(filteredItems);
         }
         final session = _sessionQuestions!;
-        if (session.isEmpty && (widget.favoritesOnly || widget.mistakesOnly)) {
-          return Center(child: Text(widget.mistakesOnly ? 'まだ間違えた問題はありません' : 'お気に入りはまだありません'));
+        if (session.isEmpty && widget.favoritesOnly) {
+          return const Center(child: Text('お気に入りはまだありません'));
         }
         if (session.isEmpty) return _loadError('${widget.subject ?? ''}の問題がありません。');
         final question = session[_questionIndex];
@@ -302,6 +294,9 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
               onPressed: () async {
                 final repository = await ref.read(favoriteQuestionRepositoryProvider.future);
                 await repository.toggle(question.id);
+                await ref.read(analyticsServiceProvider).favoriteChanged(
+                  added: !isFavorite,
+                );
               },
               icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
               color: isFavorite ? Colors.red : Theme.of(context).colorScheme.onSurfaceVariant,

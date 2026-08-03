@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/questions/domain/subjects.dart';
 
-class CategoriesScreen extends StatelessWidget {
+class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => AppPage(
+  Widget build(BuildContext context, WidgetRef ref) => AppPage(
         title: 'カテゴリ',
         leading: IconButton(
           tooltip: MaterialLocalizations.of(context).backButtonTooltip,
@@ -49,10 +51,12 @@ class CategoriesScreen extends StatelessWidget {
                           style: const TextStyle(fontWeight: FontWeight.w700)),
                       trailing:
                           const Icon(Icons.chevron_right_rounded, size: 28),
-                      onTap: () => context.go(Uri(
-                        path: '/questions',
-                        queryParameters: {'subject': subjects[index]},
-                      ).toString()),
+                      onTap: () async {
+                        await ref.read(analyticsServiceProvider).categorySelected(subjects[index]);
+                        if (context.mounted) {
+                          context.go(Uri(path: '/questions', queryParameters: {'subject': subjects[index]}).toString());
+                        }
+                      },
                     ),
                     if (index < subjects.length - 1)
                       const Divider(height: 1),

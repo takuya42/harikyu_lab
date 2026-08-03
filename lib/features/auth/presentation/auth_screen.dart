@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
+import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 
 const _brandColor = Color(0xFF5A6DBA);
 
@@ -87,6 +88,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     setState(() => _submitting = true);
     try {
       await operation();
+      if (widget.isRegistration) {
+        await ref.read(analyticsServiceProvider).signUp();
+      } else {
+        await ref.read(analyticsServiceProvider).login();
+      }
       if (mounted) context.go('/home');
     } on FirebaseAuthException catch (error) {
       if (mounted) _showError(_messageFor(error.code));

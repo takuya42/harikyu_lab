@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/features/learning_history/presentation/learning_history_screen.dart';
 import 'package:harikyu_lab/features/home/presentation/home_screen.dart';
 import 'package:harikyu_lab/features/questions/presentation/questions_screen.dart';
@@ -13,24 +15,27 @@ import 'package:harikyu_lab/features/auth/presentation/auth_screen.dart';
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/splash',
+    observers: [
+      FirebaseAnalyticsObserver(analytics: ref.watch(firebaseAnalyticsProvider)),
+    ],
     routes: [
       GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
       ShellRoute(
         builder: (context, state, child) => _AppShell(location: state.uri.path, child: child),
         routes: [
-          GoRoute(path: '/home', pageBuilder: (_, state) => _fadeSlidePage(state, const HomeScreen())),
+          GoRoute(name: 'Home', path: '/home', pageBuilder: (_, state) => _fadeSlidePage(state, const HomeScreen())),
           GoRoute(
+            name: 'Questions',
             path: '/questions',
             pageBuilder: (_, state) => _fadeSlidePage(state, QuestionsScreen(
               subject: state.uri.queryParameters['subject'],
             )),
           ),
-          GoRoute(path: '/categories', builder: (_, _) => const CategoriesScreen()),
-          GoRoute(path: '/mock-exam', pageBuilder: (_, state) => _fadeSlidePage(state, const MockExamScreen())),
+          GoRoute(name: 'Category', path: '/categories', builder: (_, _) => const CategoriesScreen()),
+          GoRoute(name: 'Mock Exam', path: '/mock-exam', pageBuilder: (_, state) => _fadeSlidePage(state, const MockExamScreen())),
           GoRoute(path: '/favorites', builder: (_, _) => const QuestionsScreen(favoritesOnly: true)),
-          GoRoute(path: '/mistakes', builder: (_, _) => const QuestionsScreen(mistakesOnly: true)),
-          GoRoute(path: '/history', pageBuilder: (_, state) => _fadeSlidePage(state, const LearningHistoryScreen())),
-          GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
+          GoRoute(name: 'Calendar', path: '/history', pageBuilder: (_, state) => _fadeSlidePage(state, const LearningHistoryScreen())),
+          GoRoute(name: 'Settings', path: '/settings', builder: (_, _) => const SettingsScreen()),
           GoRoute(path: '/login', pageBuilder: (_, state) => _fadeSlidePage(state, const AuthScreen(isRegistration: false))),
           GoRoute(path: '/register', pageBuilder: (_, state) => _fadeSlidePage(state, const AuthScreen(isRegistration: true))),
         ],

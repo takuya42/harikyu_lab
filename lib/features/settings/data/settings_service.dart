@@ -81,7 +81,6 @@ OS: ${defaultTargetPlatform.name}
 
   static bool isLearningDataPreferenceKey(String key) =>
       key == 'favorite_question_ids_v1' ||
-      key == 'mistake_question_ids_v1' ||
       key.startsWith('study_statistics_') ||
       key.startsWith('learning_history_') ||
       key.startsWith('study_calendar_') ||
@@ -90,7 +89,6 @@ OS: ${defaultTargetPlatform.name}
   static const _learningCollections = [
     'favorites',
     'learningHistory',
-    'mistakes',
     'statistics',
     'studyDays',
     'study_calendar',

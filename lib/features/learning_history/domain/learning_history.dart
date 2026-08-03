@@ -1,11 +1,10 @@
-enum LearningType { quickQuiz, category, mockExam, weaknessReview }
+enum LearningType { quickQuiz, category, mockExam }
 
 extension LearningTypeLabel on LearningType {
   String get label => switch (this) {
     LearningType.quickQuiz => '一問一答',
     LearningType.category => 'カテゴリ学習',
     LearningType.mockExam => '模擬試験',
-    LearningType.weaknessReview => '弱点復習',
   };
 }
 

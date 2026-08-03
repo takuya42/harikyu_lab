@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show FontFeature;
 
 import 'package:flutter/foundation.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
+import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/mock_exam/application/exam_timer_controller.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
@@ -113,6 +115,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
   }
 
   void _start(List<StudyQuestion> questions) {
+    unawaited(ref.read(analyticsServiceProvider).startQuiz(quizType: 'mock_exam'));
     ref.read(examTimerProvider.notifier).start(_timeLimitDuration(_timeLimitMinutes));
     setState(() {
       _session = questions;
@@ -140,6 +143,10 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
         _incorrectQuestions.add(question);
       }
     });
+    unawaited(ref.read(analyticsServiceProvider).questionAnswered(
+      questionId: question.question.id,
+      isCorrect: answer == question.correctAnswerIndex,
+    ));
   }
 
   Future<void> _next() async {
@@ -158,6 +165,11 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     ref.read(examTimerProvider.notifier).stop();
     setState(() => _finished = true);
     await _saveHistory();
+    await ref.read(analyticsServiceProvider).finishQuiz(
+      quizType: 'mock_exam',
+      questionCount: _session!.length,
+      correctCount: _correctCount,
+    );
   }
 
   Future<void> _saveHistory() async {
