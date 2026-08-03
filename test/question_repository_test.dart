@@ -34,6 +34,33 @@ void main() {
     expect(preferences.getString('questions_cache_v1'), isNotNull);
   });
 
+  test('CSVのURL、先頭5行、総行数をdebugPrintする', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    const url = 'https://example.com/questions.csv';
+    const csv = 'header\nrow1\nrow2\nrow3\nrow4\nrow5';
+    final messages = <String>[];
+    final originalDebugPrint = debugPrint;
+    debugPrint = (message, {wrapWidth}) => messages.add(message ?? '');
+    try {
+      final repository = GoogleSheetsQuestionRepository(
+        client: MockClient((_) async => http.Response(csv, 200)),
+        preferences: preferences,
+        sheetUrl: url,
+      );
+
+      await expectLater(repository.refresh(), throwsA(isA<FormatException>()));
+    } finally {
+      debugPrint = originalDebugPrint;
+    }
+
+    expect(messages, contains('CSV URL: $url'));
+    expect(messages, contains('CSV row 1: [header]'));
+    expect(messages, contains('CSV row 5: [row4]'));
+    expect(messages, isNot(contains('CSV row 6: [row5]')));
+    expect(messages, contains('CSV total rows: 6'));
+  });
+
   test('通信エラー時は保存済みキャッシュを返す', () async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
@@ -194,17 +221,18 @@ void main() {
       debugPrint = originalDebugPrint;
     }
 
-    expect(messages.single, contains('Row 3'));
-    expect(messages.single, contains(
+    final validationMessage = messages.last;
+    expect(validationMessage, contains('Row 3'));
+    expect(validationMessage, contains(
       'row.keys=[category, question, option1, option2, option3, option4, answer]',
     ));
-    expect(messages.single, contains('row={category: 臨床'));
-    expect(messages.single, contains('category=臨床'));
-    expect(messages.single, contains('question=不正な問題'));
-    expect(messages.single, contains('answer=9'));
-    expect(messages.single, contains('option1=一'));
-    expect(messages.single, contains('option2='));
-    expect(messages.single, contains('option3=三'));
-    expect(messages.single, contains('option4=四'));
+    expect(validationMessage, contains('row={category: 臨床'));
+    expect(validationMessage, contains('category=臨床'));
+    expect(validationMessage, contains('question=不正な問題'));
+    expect(validationMessage, contains('answer=9'));
+    expect(validationMessage, contains('option1=一'));
+    expect(validationMessage, contains('option2='));
+    expect(validationMessage, contains('option3=三'));
+    expect(validationMessage, contains('option4=四'));
   });
 }

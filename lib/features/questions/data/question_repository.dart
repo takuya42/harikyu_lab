@@ -83,10 +83,12 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
     if (_sheetUrl.isEmpty) {
       throw StateError('QUESTIONS_SHEET_CSV_URL が設定されていません。');
     }
+    final url = _sheetUrl;
+    debugPrint('CSV URL: $url');
     late final http.Response response;
     try {
       response = await _client
-          .get(Uri.parse(_sheetUrl))
+          .get(Uri.parse(url))
           .timeout(const Duration(seconds: 15));
     } on Object catch (error) {
       debugPrint(
@@ -105,7 +107,13 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
         Uri.parse(_sheetUrl),
       );
     }
-    final questions = _parseCsv(utf8.decode(response.bodyBytes));
+    final csv = utf8.decode(response.bodyBytes);
+    final table = _csvRows(csv);
+    for (var index = 0; index < table.length && index < 5; index++) {
+      debugPrint('CSV row ${index + 1}: ${table[index]}');
+    }
+    debugPrint('CSV total rows: ${table.length}');
+    final questions = _parseCsv(table);
     debugPrint(
       '[QuestionRepository] spreadsheet question count=${questions.length}',
     );
@@ -121,8 +129,7 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
     return List.unmodifiable(questions);
   }
 
-  List<Question> _parseCsv(String source) {
-    final table = _csvRows(source);
+  List<Question> _parseCsv(List<List<String>> table) {
     if (table.isEmpty) return const [];
     final headers = table.first.map((value) => value.trim()).toList();
     if (headers.isNotEmpty) headers[0] = headers[0].replaceFirst('\ufeff', '');
