@@ -5,6 +5,7 @@ import 'package:harikyu_lab/core/constants/app_constants.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/study_calendar_day.dart';
+import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -45,6 +46,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final hasProPlan = ref.watch(userPlanProvider).value == 'pro';
     final summary = ref.watch(homeSummaryProvider);
     final streakDays = ref.watch(studyStreakProvider);
     final goal = ref.watch(dailyGoalProvider).asData?.value ?? defaultDailyGoal;
@@ -87,6 +89,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         Text(AppConstants.appName, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
                         Text('おはようございます', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
                       ])),
+                      if (hasProPlan)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: colors.primary,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(
+                            'PRO',
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              color: colors.onPrimary,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
                     ]),
                     const SizedBox(height: 30),
                     Text('今日も、一歩ずつ。', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
