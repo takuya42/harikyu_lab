@@ -11,6 +11,7 @@ import 'package:harikyu_lab/features/learning_history/data/study_calendar_reposi
 import 'package:harikyu_lab/features/questions/data/favorite_question_repository.dart';
 import 'package:harikyu_lab/features/settings/data/settings_service.dart';
 import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
+import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -32,6 +33,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).asData?.value;
     final colors = Theme.of(context).colorScheme;
+    final isPro = ref.watch(proAccessProvider).value?.isPro ?? false;
     return AppPage(
       title: '設定',
       backgroundColor: colors.surface,
@@ -42,6 +44,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           children: [
             _AnimatedSection(
               index: 0,
+              title: 'Pro版',
+              child: _SettingsCard(children: [
+                _SettingsItem(
+                  icon: Icons.workspace_premium_outlined,
+                  label: isPro ? 'Pro版をご利用中' : 'Pro版にアップグレード（¥980）',
+                  onTap: () async => context.push('/pro'),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 28),
+            _AnimatedSection(
+              index: 1,
               title: 'アカウント',
               child: _SettingsCard(
                 children: [
@@ -70,7 +84,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 28),
             _AnimatedSection(
-              index: 1,
+              index: 2,
               title: 'サポート・法的情報',
               child: _SettingsCard(
                 children: [
@@ -100,7 +114,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 28),
             _AnimatedSection(
-              index: 2,
+              index: 3,
               title: 'データ管理',
               child: _SettingsCard(
                 children: [

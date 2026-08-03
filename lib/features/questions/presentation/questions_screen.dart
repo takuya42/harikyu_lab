@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
@@ -10,6 +11,7 @@ import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repo
 import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
+import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
 
 class QuestionsScreen extends ConsumerStatefulWidget {
   const QuestionsScreen({super.key, this.subject, this.favoritesOnly = false});
@@ -43,6 +45,16 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   }
 
   Future<void> _start() async {
+    final isPro = ref.read(proAccessProvider).value?.isPro ?? false;
+    if (widget.subject != null && !isPro) {
+      if (mounted) await context.push('/pro');
+      return;
+    }
+    final used = ref.read(dailyFreeUsageProvider).value ?? 0;
+    if (!isPro && used >= freeDailyQuestionLimit) {
+      if (mounted) await context.push('/pro');
+      return;
+    }
     final repository = await _statisticsRepository;
     repository.startSession();
     await ref.read(analyticsServiceProvider).startQuiz(
@@ -80,6 +92,9 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         answeredAt: answeredAt,
         duration: answeredAt.difference(answerStartedAt),
       );
+      if (!(ref.read(proAccessProvider).value?.isPro ?? false)) {
+        await ref.read(dailyFreeUsageProvider.notifier).recordAnswer();
+      }
       _lastAnswerRecordedAt = answeredAt;
       if (!mounted) return;
       setState(() {
@@ -236,13 +251,26 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
                 .toList()
             : items;
         if (_sessionQuestions == null) {
-          _sessionQuestions = createStudySession(filteredItems);
+          final session = createStudySession(filteredItems);
+          final isPro = ref.read(proAccessProvider).value?.isPro ?? false;
+          final used = ref.read(dailyFreeUsageProvider).value ?? 0;
+          final remaining = (freeDailyQuestionLimit - used).clamp(
+            0,
+            freeDailyQuestionLimit,
+          );
+          _sessionQuestions = isPro ? session : session.take(remaining).toList();
         }
         final session = _sessionQuestions!;
         if (session.isEmpty && widget.favoritesOnly) {
           return const Center(child: Text('お気に入りはまだありません'));
         }
-        if (session.isEmpty) return _loadError('${widget.subject ?? ''}の問題がありません。');
+        if (session.isEmpty) {
+          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('本日の無料分10問を学習しました。'),
+            const SizedBox(height: 16),
+            FilledButton(onPressed: () => context.push('/pro'), child: const Text('Pro版で続ける')),
+          ]));
+        }
         final question = session[_questionIndex];
         return RefreshIndicator(
           onRefresh: _refresh,

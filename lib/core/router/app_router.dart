@@ -11,6 +11,7 @@ import 'package:harikyu_lab/features/mock_exam/presentation/mock_exam_screen.dar
 import 'package:harikyu_lab/features/settings/presentation/settings_screen.dart';
 import 'package:harikyu_lab/features/splash/presentation/splash_screen.dart';
 import 'package:harikyu_lab/features/auth/presentation/auth_screen.dart';
+import 'package:harikyu_lab/features/pro/presentation/pro_purchase_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -36,6 +37,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/favorites', builder: (_, _) => const QuestionsScreen(favoritesOnly: true)),
           GoRoute(name: 'Calendar', path: '/history', pageBuilder: (_, state) => _fadeSlidePage(state, const LearningHistoryScreen())),
           GoRoute(name: 'Settings', path: '/settings', builder: (_, _) => const SettingsScreen()),
+          GoRoute(path: '/pro', builder: (_, _) => const ProPurchaseScreen()),
           GoRoute(path: '/login', pageBuilder: (_, state) => _fadeSlidePage(state, const AuthScreen(isRegistration: false))),
           GoRoute(path: '/register', pageBuilder: (_, state) => _fadeSlidePage(state, const AuthScreen(isRegistration: true))),
         ],

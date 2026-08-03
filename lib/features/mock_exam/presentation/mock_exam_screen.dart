@@ -17,6 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
+import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
 
 const _questionCountPreferenceKey = 'mock_exam_question_count';
 const _timeLimitPreferenceKey = 'mock_exam_time_limit_minutes';
@@ -87,6 +88,11 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
 
   Future<void> _selectQuestionCount(int? value) async {
     if (value == null) return;
+    final isPro = ref.read(proAccessProvider).value?.isPro ?? false;
+    if (!isPro && value != freeMockExamQuestionLimit) {
+      await context.push('/pro');
+      return;
+    }
     setState(() => _questionCount = value);
     final preferences = await SharedPreferences.getInstance();
     await preferences.setInt(_questionCountPreferenceKey, value);
@@ -129,6 +135,12 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
       _starting = false;
       _startedAt = DateTime.now();
     });
+  }
+
+  int _effectiveQuestionCount(int available) {
+    final configured = _questionCount == 0 ? available : _questionCount;
+    final isPro = ref.read(proAccessProvider).value?.isPro ?? false;
+    return isPro ? configured : configured.clamp(0, freeMockExamQuestionLimit);
   }
 
   void _answer(int answer, StudyQuestion question) {
@@ -270,7 +282,8 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
         data: (questions) {
           if (questions.isEmpty) return _loadError('問題がありません。');
           _availableQuestions = questions;
-          final requested = _questionCount == 0 ? questions.length : _questionCount;
+          final isPro = ref.watch(proAccessProvider).value?.isPro ?? false;
+          final requested = _effectiveQuestionCount(questions.length);
           final count = questions.length < requested ? questions.length : requested;
           return ListView(key: const ValueKey('exam-introduction'), padding: const EdgeInsets.only(bottom: 16), children: [
             const SizedBox(height: 18),
@@ -289,7 +302,11 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
             const SizedBox(height: 10),
             Text('全問題から重複なく$count問を出題します。\n問題と選択肢の順番は毎回変わります。', textAlign: TextAlign.center, style: TextStyle(height: 1.6, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 26),
-            _ExamSettingsCard(questionCount: _questionCount, timeLimitMinutes: _timeLimitMinutes, onQuestionCountChanged: _selectQuestionCount, onTimeLimitChanged: _selectTimeLimit),
+            _ExamSettingsCard(questionCount: isPro ? _questionCount : freeMockExamQuestionLimit, timeLimitMinutes: _timeLimitMinutes, onQuestionCountChanged: _selectQuestionCount, onTimeLimitChanged: _selectTimeLimit),
+            if (!isPro) ...[
+              const SizedBox(height: 12),
+              TextButton.icon(onPressed: () => context.push('/pro'), icon: const Icon(Icons.workspace_premium_outlined), label: const Text('Pro版で模擬試験を無制限に')),
+            ],
             const SizedBox(height: 24),
             AnimatedOpacity(
               opacity: _starting ? 0 : 1,
@@ -424,7 +441,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
         padding: const EdgeInsets.fromLTRB(0, 14, 0, 4),
         decoration: BoxDecoration(color: colors.surface, border: Border(top: BorderSide(color: colors.outlineVariant.withValues(alpha: .55)))),
         child: Row(children: [
-          Expanded(child: FilledButton.tonalIcon(onPressed: () => _start(createStudySession(_availableQuestions!, questionCount: _questionCount == 0 ? _availableQuestions!.length : _questionCount)), icon: const Icon(Icons.replay_rounded), label: const Text('もう一度挑戦'))),
+          Expanded(child: FilledButton.tonalIcon(onPressed: () => _start(createStudySession(_availableQuestions!, questionCount: _effectiveQuestionCount(_availableQuestions!.length))), icon: const Icon(Icons.replay_rounded), label: const Text('もう一度挑戦'))),
           const SizedBox(width: 12),
           Expanded(child: FilledButton.icon(onPressed: () => context.go('/home'), icon: const Icon(Icons.home_rounded), label: const Text('ホームへ戻る'))),
         ]),
