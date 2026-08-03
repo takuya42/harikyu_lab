@@ -3,16 +3,20 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:harikyu_lab/core/constants/question_sheet_constants.dart';
 import 'package:harikyu_lab/core/providers/shared_preferences_provider.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-const googleSheetsCsvUrl = String.fromEnvironment(
-  'QUESTIONS_SHEET_CSV_URL',
-  defaultValue:
-      'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSyFXi-NgrS9YokHo5i183yOzt-c-7L00tR4qN4plO-ezWOcn_dpgrxgFXGXhGjILIMuJ0h0qViTCB/pub?output=csv',
-);
+String categoryCsvUrl(String category) {
+  final gid = questionSheetGids[category];
+  if (gid == null || gid.isEmpty) {
+    throw StateError('カテゴリ「$category」の gid が設定されていません。');
+  }
+  return 'https://docs.google.com/spreadsheets/d/$spreadsheetId/'
+      'export?format=csv&gid=$gid';
+}
 
 const mockExamGoogleSheetsCsvUrl = String.fromEnvironment(
   'MOCK_EXAM_SHEET_CSV_URL',
@@ -33,6 +37,7 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
     required http.Client client,
     required SharedPreferences preferences,
     required String sheetUrl,
+    this.gid,
     String cacheKey = 'questions_cache_v1',
   })  : _client = client,
         _preferences = preferences,
@@ -42,6 +47,7 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
   final http.Client _client;
   final SharedPreferences _preferences;
   final String _sheetUrl;
+  final String? gid;
   final String _cacheKey;
 
   @override
@@ -81,9 +87,10 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
   @override
   Future<List<Question>> refresh() async {
     if (_sheetUrl.isEmpty) {
-      throw StateError('QUESTIONS_SHEET_CSV_URL が設定されていません。');
+      throw StateError('CSV URL が設定されていません。');
     }
     final url = _sheetUrl;
+    if (gid != null) debugPrint('CSV gid: $gid');
     debugPrint('CSV URL: $url');
     late final http.Response response;
     try {
@@ -114,6 +121,7 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
     }
     debugPrint('CSV total rows: ${table.length}');
     final questions = _parseCsv(table);
+    debugPrint('CSV fetched count: ${questions.length}');
     debugPrint(
       '[QuestionRepository] spreadsheet question count=${questions.length}',
     );
@@ -201,7 +209,8 @@ final questionRepositoryProvider = FutureProvider<QuestionRepository>(
   (ref) async => GoogleSheetsQuestionRepository(
     client: ref.watch(httpClientProvider),
     preferences: await ref.watch(sharedPreferencesProvider.future),
-    sheetUrl: googleSheetsCsvUrl,
+    sheetUrl: categoryCsvUrl('医療概論'),
+    gid: questionSheetGids['医療概論'],
   ),
 );
 
@@ -226,9 +235,32 @@ final mockExamQuestionsProvider = StreamProvider<List<Question>>((ref) async* {
 
 final subjectQuestionsProvider =
     Provider.family<AsyncValue<List<Question>>, String?>((ref, subject) {
+  if (subject != null) return ref.watch(categoryQuestionsProvider(subject));
   return ref.watch(questionsProvider).whenData(
         (questions) => filterQuestionsByCategory(questions, subject),
       );
+});
+
+final categoryQuestionRepositoryProvider =
+    FutureProvider.family<QuestionRepository, String>((ref, category) async {
+  final gid = questionSheetGids[category];
+  return GoogleSheetsQuestionRepository(
+    client: ref.watch(httpClientProvider),
+    preferences: await ref.watch(sharedPreferencesProvider.future),
+    sheetUrl: categoryCsvUrl(category),
+    gid: gid,
+    cacheKey: 'questions_cache_category_$category',
+  );
+});
+
+final categoryQuestionsProvider =
+    StreamProvider.family<List<Question>, String>((ref, category) async* {
+  final repository =
+      await ref.watch(categoryQuestionRepositoryProvider(category).future);
+  final questions = repository.watchQuestions();
+  await for (final items in questions) {
+    yield filterQuestionsByCategory(items, category);
+  }
 });
 
 /// Filters the category selected in the UI against the spreadsheet category.

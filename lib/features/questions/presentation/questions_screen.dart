@@ -337,9 +337,17 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
 
   Future<void> _refresh() async {
     try {
-      final repository = await ref.read(questionRepositoryProvider.future);
+      final repository = widget.subject == null
+          ? await ref.read(questionRepositoryProvider.future)
+          : await ref.read(
+              categoryQuestionRepositoryProvider(widget.subject!).future,
+            );
       await repository.refresh();
-      ref.invalidate(questionsProvider);
+      if (widget.subject == null) {
+        ref.invalidate(questionsProvider);
+      } else {
+        ref.invalidate(categoryQuestionsProvider(widget.subject!));
+      }
       ref.invalidate(subjectQuestionsProvider(widget.subject));
     } on Object {
       if (!mounted) return;

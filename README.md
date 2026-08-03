@@ -23,31 +23,31 @@
 ### 2. CSV として公開する
 
 1. スプレッドシートで **ファイル → 共有 → ウェブに公開**を開きます。
-2. 「ドキュメント全体」ではなく、問題が入ったシートを選択します。
-3. 形式に **カンマ区切りの値（.csv）**を選び、「公開」を押します。
-4. 発行された URL を控えます。URL は通常、次の形式です。
+2. 各カテゴリのシートが持つ `gid` を URL から控えます。
+3. スプレッドシートを「リンクを知っている全員が閲覧可」にします。
+4. アプリはカテゴリごとに次の URL を組み立てます。
 
 ```text
-https://docs.google.com/spreadsheets/d/e/公開ID/pub?gid=シートID&single=true&output=csv
+https://docs.google.com/spreadsheets/d/<spreadsheetId>/export?format=csv&gid=<gid>
 ```
 
-「リンクを知っている全員を閲覧者」にした共有用 URL ではなく、上記手順で発行した `output=csv` の公開 URL を使用してください。公開 URL を知っている人はデータを閲覧できるため、個人情報や非公開情報は記載しないでください。
+シートを公開するため、個人情報や非公開情報は記載しないでください。
 
-### 3. アプリへ URL を渡す
+### 3. Spreadsheet ID と gid を設定する
 
-URL はソースコードへ保存せず、ビルドまたは実行時に `--dart-define` で指定します。
+Spreadsheet ID と各カテゴリの gid は `lib/core/constants/question_sheet_constants.dart` で一元管理します。各シートの実際の値を `questionSheetGids` に設定してください。
 
 ```bash
-flutter run --dart-define=QUESTIONS_SHEET_CSV_URL='https://docs.google.com/spreadsheets/d/e/公開ID/pub?gid=シートID&single=true&output=csv'
+flutter run
 ```
 
 リリースビルドでも同じ指定が必要です。
 
 ```bash
-flutter build appbundle --dart-define=QUESTIONS_SHEET_CSV_URL='https://docs.google.com/spreadsheets/d/e/公開ID/pub?gid=シートID&single=true&output=csv'
+flutter build appbundle
 ```
 
-URL 未設定かつ端末にキャッシュがない場合、問題画面には取得エラーと再試行ボタンが表示されます。
+ビルド時の `--dart-define` 指定は不要です。
 
 ## データ更新とキャッシュ
 
