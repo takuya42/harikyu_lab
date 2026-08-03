@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
+import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -52,6 +53,75 @@ void main() {
 
     expect(questions, hasLength(1));
     expect(questions.single.single.id, 'q001');
+  });
+
+  test('カテゴリ列を使って衛生学・公衆衛生学を抽出する', () {
+    const questions = [
+      Question(
+        id: 'category-match',
+        text: '問題1',
+        choices: ['1', '2', '3', '4'],
+        correctAnswerIndex: 0,
+        category: '衛生学・公衆衛生学',
+      ),
+      Question(
+        id: 'other',
+        text: '問題2',
+        choices: ['1', '2', '3', '4'],
+        correctAnswerIndex: 0,
+        category: '解剖学',
+      ),
+    ];
+
+    final filtered = filterQuestionsByCategory(
+      questions,
+      '衛生学・公衆衛生学',
+    );
+
+    expect(filtered.map((question) => question.id), ['category-match']);
+  });
+
+  test('旧データのsubject列もカテゴリ抽出の互換対象にする', () {
+    const question = Question(
+      id: 'subject-match',
+      text: '問題',
+      choices: ['1', '2', '3', '4'],
+      correctAnswerIndex: 0,
+      subject: '衛生学・公衆衛生学',
+    );
+
+    final filtered = filterQuestionsByCategory(
+      const [question],
+      '衛生学・公衆衛生学',
+    );
+
+    expect(filtered.single.id, 'subject-match');
+  });
+
+  test('HTTP取得失敗時にレスポンスコードとURLをdebugPrintする', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    const url = 'https://example.com/unavailable.csv';
+    final messages = <String>[];
+    final originalDebugPrint = debugPrint;
+    debugPrint = (message, {wrapWidth}) => messages.add(message ?? '');
+    try {
+      final repository = GoogleSheetsQuestionRepository(
+        client: MockClient((_) async => http.Response('', 503)),
+        preferences: preferences,
+        sheetUrl: url,
+      );
+
+      await expectLater(
+        repository.refresh(),
+        throwsA(isA<http.ClientException>()),
+      );
+    } finally {
+      debugPrint = originalDebugPrint;
+    }
+
+    expect(messages, contains(contains('statusCode=503')));
+    expect(messages, contains(contains('url=$url')));
   });
 
   test('キャッシュを先に返してから更新された問題を返す', () async {

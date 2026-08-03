@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/core/providers/shared_preferences_provider.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
@@ -82,13 +83,36 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
     if (_sheetUrl.isEmpty) {
       throw StateError('QUESTIONS_SHEET_CSV_URL が設定されていません。');
     }
-    final response = await _client
-        .get(Uri.parse(_sheetUrl))
-        .timeout(const Duration(seconds: 15));
+    late final http.Response response;
+    try {
+      response = await _client
+          .get(Uri.parse(_sheetUrl))
+          .timeout(const Duration(seconds: 15));
+    } on Object catch (error) {
+      debugPrint(
+        '[QuestionRepository] fetch failed statusCode=unavailable '
+        'url=$_sheetUrl error=$error',
+      );
+      rethrow;
+    }
     if (response.statusCode != 200) {
-      throw http.ClientException('問題データの取得に失敗しました (${response.statusCode})');
+      debugPrint(
+        '[QuestionRepository] fetch failed statusCode=${response.statusCode} '
+        'url=$_sheetUrl',
+      );
+      throw http.ClientException(
+        '問題データの取得に失敗しました (${response.statusCode})',
+        Uri.parse(_sheetUrl),
+      );
     }
     final questions = _parseCsv(utf8.decode(response.bodyBytes));
+    debugPrint(
+      '[QuestionRepository] spreadsheet question count=${questions.length}',
+    );
+    debugPrint(
+      '[QuestionRepository] first 5 categories='
+      '${questions.take(5).map((question) => question.category).toList()}',
+    );
     if (questions.isEmpty) throw const FormatException('問題データが空です。');
     await _preferences.setString(
       _cacheKey,
@@ -196,10 +220,40 @@ final mockExamQuestionsProvider = StreamProvider<List<Question>>((ref) async* {
 final subjectQuestionsProvider =
     Provider.family<AsyncValue<List<Question>>, String?>((ref, subject) {
   return ref.watch(questionsProvider).whenData(
-        (questions) => subject == null
-            ? questions
-            : List.unmodifiable(
-                questions.where((question) => question.subject == subject),
-              ),
+        (questions) => filterQuestionsByCategory(questions, subject),
       );
 });
+
+/// Filters the category selected in the UI against the spreadsheet category.
+///
+/// Older sheets stored the same value in `subject`, so that column remains a
+/// compatibility fallback while `category` is the canonical filter field.
+List<Question> filterQuestionsByCategory(
+  List<Question> questions,
+  String? category,
+) {
+  debugPrint('[QuestionRepository] category filter="$category"');
+  debugPrint(
+    '[QuestionRepository] first 5 categories='
+    '${questions.take(5).map((question) => question.category).toList()}',
+  );
+  if (category == null) {
+    debugPrint(
+      '[QuestionRepository] filtered question count=${questions.length}',
+    );
+    return questions;
+  }
+
+  final normalizedCategory = category.trim();
+  final filtered = List<Question>.unmodifiable(
+    questions.where(
+      (question) => question.category.trim() == normalizedCategory ||
+          question.subject.trim() == normalizedCategory,
+    ),
+  );
+  debugPrint(
+    '[QuestionRepository] filtered question count=${filtered.length} '
+    'category="$category"',
+  );
+  return filtered;
+}
