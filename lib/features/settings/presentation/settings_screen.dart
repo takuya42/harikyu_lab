@@ -2,8 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:harikyu_lab/core/constants/app_constants.dart';
 import 'package:harikyu_lab/core/analytics/analytics_service.dart';
+import 'package:harikyu_lab/core/constants/app_urls.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
@@ -71,17 +71,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               children: [
                 _tile(Icons.description_outlined, '利用規約', () {
-                  return _run(() async {
-                    final service = await ref.read(settingsServiceProvider.future);
-                    await service.openExternalUrl(AppConstants.termsUrl);
-                  });
+                  return _openPage(AppUrls.termsOfService);
                 }),
                 const Divider(height: 1, indent: 56),
                 _tile(Icons.privacy_tip_outlined, 'プライバシーポリシー', () {
-                  return _run(() async {
-                    final service = await ref.read(settingsServiceProvider.future);
-                    await service.openExternalUrl(AppConstants.privacyPolicyUrl);
-                  });
+                  return _openPage(AppUrls.privacyPolicy);
                 }),
                 const Divider(height: 1, indent: 56),
                 _tile(Icons.mail_outline, 'お問い合わせ', () {
@@ -211,8 +205,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }, deletingAccount: true);
   }
 
+  Future<void> _openPage(String url) async {
+    await _run(
+      () async {
+        final service = await ref.read(settingsServiceProvider.future);
+        await service.openExternalUrl(url);
+      },
+      failureMessage: 'ページを開けませんでした',
+    );
+  }
+
   Future<void> _run(Future<void> Function() operation,
-      {bool deletingAccount = false}) async {
+      {bool deletingAccount = false, String? failureMessage}) async {
     if (_processing) return;
     setState(() => _processing = true);
     try {
@@ -226,9 +230,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             : '認証処理に失敗しました。もう一度お試しください。');
       }
     } on Object {
-      _showMessage(deletingAccount
-          ? 'ユーザーデータの削除に失敗しました。通信状態を確認してください。'
-          : '処理に失敗しました。通信状態や対応アプリを確認してください。');
+      _showMessage(failureMessage ??
+          (deletingAccount
+              ? 'ユーザーデータの削除に失敗しました。通信状態を確認してください。'
+              : '処理に失敗しました。通信状態や対応アプリを確認してください。'));
     } finally {
       if (mounted) setState(() => _processing = false);
     }
