@@ -12,6 +12,7 @@ import 'package:harikyu_lab/features/learning_history/data/learning_history_repo
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
 import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
+import 'package:harikyu_lab/features/pro/data/usage_limit_service.dart';
 
 class QuestionsScreen extends ConsumerStatefulWidget {
   const QuestionsScreen({super.key, this.subject, this.favoritesOnly = false});
@@ -45,12 +46,12 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   }
 
   Future<void> _start() async {
-    final hasProPlan = ref.read(userPlanProvider).value == 'pro';
+    final hasProPlan = await ref.read(isProProvider.future);
     if (widget.subject != null && !hasProPlan) {
       if (mounted) await context.push('/pro');
       return;
     }
-    final used = ref.read(dailyFreeUsageProvider).value ?? 0;
+    final used = await ref.read(usageLimitProvider.future);
     if (!hasProPlan && used >= freeDailyQuestionLimit) {
       if (mounted) await context.push('/pro');
       return;
@@ -92,9 +93,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         answeredAt: answeredAt,
         duration: answeredAt.difference(answerStartedAt),
       );
-      if (ref.read(userPlanProvider).value != 'pro') {
-        await ref.read(dailyFreeUsageProvider.notifier).recordAnswer();
-      }
+      await ref.read(usageLimitProvider.notifier).recordAnswer();
       _lastAnswerRecordedAt = answeredAt;
       if (!mounted) return;
       setState(() {
@@ -252,8 +251,8 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
             : items;
         if (_sessionQuestions == null) {
           final session = createStudySession(filteredItems);
-          final hasProPlan = ref.read(userPlanProvider).value == 'pro';
-          final used = ref.read(dailyFreeUsageProvider).value ?? 0;
+          final hasProPlan = ref.watch(isProProvider).value ?? false;
+          final used = ref.watch(usageLimitProvider).value ?? 0;
           final remaining = (freeDailyQuestionLimit - used).clamp(
             0,
             freeDailyQuestionLimit,

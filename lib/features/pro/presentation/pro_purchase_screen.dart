@@ -19,7 +19,7 @@ class ProPurchaseScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(proAccessProvider).value;
-    final hasProPlan = ref.watch(userPlanProvider).value == 'pro';
+    final hasProPlan = ref.watch(isProProvider).value ?? false;
     ref.listen(proAccessProvider, (_, next) {
       final message = next.value?.message;
       if (message != null && context.mounted) {

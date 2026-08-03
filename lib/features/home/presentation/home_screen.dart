@@ -46,7 +46,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final hasProPlan = ref.watch(userPlanProvider).value == 'pro';
+    final hasProPlan = ref.watch(isProProvider).value ?? false;
     final summary = ref.watch(homeSummaryProvider);
     final streakDays = ref.watch(studyStreakProvider);
     final goal = ref.watch(dailyGoalProvider).asData?.value ?? defaultDailyGoal;

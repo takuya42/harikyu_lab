@@ -33,7 +33,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).asData?.value;
     final colors = Theme.of(context).colorScheme;
-    final hasProPlan = ref.watch(userPlanProvider).value == 'pro';
+    final hasProPlan = ref.watch(isProProvider).value ?? false;
     return AppPage(
       title: '設定',
       backgroundColor: colors.surface,
