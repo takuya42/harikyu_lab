@@ -20,7 +20,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _StudyItem('模擬試験', '本番形式で確認', Icons.timer_outlined, '/mock-exam'),
     _StudyItem('カテゴリ', '分野を集中学習', Icons.grid_view_outlined, '/categories'),
     _StudyItem('お気に入り', '保存問題を復習', Icons.favorite_border, '/favorites'),
-    _StudyItem('弱点復習', '間違いを克服', Icons.refresh_outlined, '/mistakes'),
   ];
 
   @override

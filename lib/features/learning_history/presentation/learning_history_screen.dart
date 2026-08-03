@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/study_calendar_day.dart';
@@ -21,6 +22,7 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ref.read(analyticsServiceProvider).calendarOpened();
   }
 
   @override

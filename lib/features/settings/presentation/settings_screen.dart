@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/constants/app_constants.dart';
+import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/questions/data/favorite_question_repository.dart';
-import 'package:harikyu_lab/features/questions/data/mistake_question_repository.dart';
 import 'package:harikyu_lab/features/settings/data/settings_service.dart';
 import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
 
@@ -21,6 +21,12 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _processing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(analyticsServiceProvider).settingsOpened();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -169,7 +175,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _resetData() async {
     if (!await _confirm(
       '学習データを初期化しますか？',
-      'お気に入り、学習履歴、弱点復習、統計データが削除されます。この操作は取り消せません。',
+      'お気に入り、学習履歴、統計データが削除されます。この操作は取り消せません。',
       '初期化',
       destructive: true,
     )) return;
@@ -178,8 +184,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await service.resetLearningData();
       ref.invalidate(favoriteQuestionRepositoryProvider);
       ref.invalidate(favoriteQuestionIdsProvider);
-      ref.invalidate(mistakeQuestionRepositoryProvider);
-      ref.invalidate(mistakeQuestionIdsProvider);
       ref.invalidate(studyStatisticsRepositoryProvider);
       ref.invalidate(studyStatisticsProvider);
       ref.invalidate(learningHistoryRepositoryProvider);

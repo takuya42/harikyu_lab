@@ -1,21 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/constants/app_constants.dart';
+import 'package:harikyu_lab/core/update/force_update_service.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future<void>.delayed(const Duration(milliseconds: 900), () {
-      if (mounted) context.go('/home');
-    });
+    _checkForUpdate();
+  }
+
+  Future<void> _checkForUpdate() async {
+    var updateRequired = false;
+    try {
+      updateRequired = await ref.read(forceUpdateServiceProvider).isUpdateRequired();
+    } on Object {
+      // A transient Remote Config failure must not prevent the app from opening.
+    }
+    if (!mounted) return;
+    if (updateRequired) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: const Text('アップデートが必要です'),
+            content: const Text('新しいバージョンにアップデートしてからご利用ください。'),
+            actions: [
+              FilledButton(
+                onPressed: () => ref.read(forceUpdateServiceProvider).openStore(),
+                child: const Text('アップデートする'),
+              ),
+            ],
+          ),
+        ),
+      );
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (mounted) context.go('/home');
   }
 
   @override
