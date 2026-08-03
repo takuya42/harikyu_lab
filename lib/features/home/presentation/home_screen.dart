@@ -89,22 +89,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         Text(AppConstants.appName, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
                         Text('おはようございます', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
                       ])),
-                      if (hasProPlan)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: colors.primary,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                          child: Text(
-                            'PRO',
-                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: colors.onPrimary,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
+                      _MembershipBadge(isPro: hasProPlan),
                     ]),
                     const SizedBox(height: 30),
                     Text('今日も、一歩ずつ。', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
@@ -149,6 +134,105 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 }
+
+class _MembershipBadge extends StatelessWidget {
+  const _MembershipBadge({required this.isPro});
+
+  final bool isPro;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: isPro ? colors.primary : colors.primaryContainer,
+      shape: const StadiumBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _showMembershipDialog(context, isPro: isPro),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          child: Text(
+            isPro ? 'PRO' : 'FREE',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: isPro ? colors.onPrimary : colors.onPrimaryContainer,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _showMembershipDialog(
+  BuildContext context, {
+  required bool isPro,
+}) =>
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.94, end: 1).animate(curved),
+            child: child,
+          ),
+        );
+      },
+      pageBuilder: (dialogContext, animation, secondaryAnimation) => AlertDialog(
+        title: Text(isPro ? 'Pro会員' : '無料プラン'),
+        content: SingleChildScrollView(
+          child: isPro
+              ? const Text(
+                  'ありがとうございます！\n\n'
+                  '現在すべての学習機能をご利用いただけます。\n\n'
+                  '今後追加されるPro限定機能も\n無料でご利用いただけます。',
+                )
+              : const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('・1日10問まで学習できます'),
+                    Text('・カテゴリ学習が利用できます'),
+                    Text('・学習履歴・カレンダーを利用できます'),
+                    SizedBox(height: 20),
+                    Text(
+                      'Pro版では',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 8),
+                    Text('・問題数無制限'),
+                    Text('・今後追加されるすべての機能'),
+                    Text('・優先アップデート'),
+                  ],
+                ),
+        ),
+        actions: [
+          if (!isPro)
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                context.push('/pro');
+              },
+              child: const Text('Pro版を見る'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('閉じる'),
+          ),
+        ],
+      ),
+    );
 
 class _DailyGoalCard extends StatelessWidget {
   const _DailyGoalCard({required this.answered, required this.goal});

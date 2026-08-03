@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:harikyu_lab/app/app.dart';
 import 'package:harikyu_lab/features/auth/presentation/auth_screen.dart';
+import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 
@@ -15,8 +16,9 @@ const _questions = [
   ),
 ];
 
-ProviderScope testApp() => ProviderScope(
+ProviderScope testApp({bool isPro = false}) => ProviderScope(
       overrides: [
+        isProProvider.overrideWith((ref) => Stream.value(isPro)),
         questionsProvider.overrideWith((ref) => Stream.value(_questions)),
         mockExamQuestionsProvider
             .overrideWith((ref) => Stream.value(_questions)),
@@ -25,6 +27,42 @@ ProviderScope testApp() => ProviderScope(
     );
 
 void main() {
+  testWidgets('無料会員バッジからプラン内容と購入画面を確認できる', (tester) async {
+    await tester.pumpWidget(testApp());
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+
+    expect(find.text('FREE'), findsOneWidget);
+    await tester.tap(find.text('FREE'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('無料プラン'), findsOneWidget);
+    expect(find.text('・1日10問まで学習できます'), findsOneWidget);
+    expect(find.text('・問題数無制限'), findsOneWidget);
+
+    await tester.tap(find.text('Pro版を見る'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pro版を購入'), findsOneWidget);
+  });
+
+  testWidgets('Pro会員バッジから会員内容を確認できる', (tester) async {
+    await tester.pumpWidget(testApp(isPro: true));
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PRO'), findsOneWidget);
+    expect(find.text('FREE'), findsNothing);
+    await tester.tap(find.text('PRO'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pro会員'), findsOneWidget);
+    expect(find.text('ありがとうございます！\n\n現在すべての学習機能をご利用いただけます。\n\n今後追加されるPro限定機能も\n無料でご利用いただけます。'), findsOneWidget);
+    expect(find.text('Pro版を見る'), findsNothing);
+    await tester.tap(find.text('閉じる'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pro会員'), findsNothing);
+  });
+
   testWidgets('パスワード再設定ダイアログを安全に閉じられる', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
