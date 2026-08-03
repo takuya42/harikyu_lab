@@ -1,12 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:harikyu_lab/core/constants/app_constants.dart';
 import 'package:harikyu_lab/core/providers/shared_preferences_provider.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -27,41 +23,6 @@ class SettingsService {
     if (!await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)) {
       throw StateError('URLを開けませんでした。');
     }
-  }
-
-  Future<void> openContactEmail() async {
-    final package = await PackageInfo.fromPlatform();
-    final device = await _deviceDescription();
-    final body = '''
-
-
----
-アプリバージョン: ${package.version} (${package.buildNumber})
-OS: ${defaultTargetPlatform.name}
-端末: $device
-''';
-    final uri = Uri(
-      scheme: 'mailto',
-      path: AppConstants.supportEmail,
-      queryParameters: {
-        'subject': 'はりきゅうラボ お問い合わせ',
-        'body': body,
-      },
-    );
-    if (!await launchUrl(uri)) throw StateError('メールアプリを起動できませんでした。');
-  }
-
-  Future<String> _deviceDescription() async {
-    final info = DeviceInfoPlugin();
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      final value = await info.androidInfo;
-      return '${value.manufacturer} ${value.model} (Android ${value.version.release})';
-    }
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      final value = await info.iosInfo;
-      return '${value.name} ${value.utsname.machine} (${value.systemVersion})';
-    }
-    return defaultTargetPlatform.name;
   }
 
   Future<void> resetLearningData() async {

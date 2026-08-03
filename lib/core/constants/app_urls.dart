@@ -3,4 +3,6 @@ abstract final class AppUrls {
       'https://prairie-fortnight-f1a.notion.site/3b10936640a7800e875be0680a27b1c7';
   static const privacyPolicy =
       'https://prairie-fortnight-f1a.notion.site/3b10936640a780589c3cdef001c900fe';
+  static const contactForm =
+      'https://docs.google.com/forms/d/e/1FAIpQLSfb_TytcC2qJCp_ohZGjEkuvlCb95O1DW3G1ZBIY9l1dHNKlg/viewform?usp=publish-editor';
 }
