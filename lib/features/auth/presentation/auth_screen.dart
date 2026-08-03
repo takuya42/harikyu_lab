@@ -3,8 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:harikyu_lab/core/analytics/analytics_service.dart';
+import 'package:harikyu_lab/core/providers/firebase_firestore_provider.dart';
+import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 
 const _brandColor = Color(0xFF5A6DBA);
 
@@ -67,7 +68,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           final name = _nameController.text.trim();
           await user.updateDisplayName(name);
           final now = FieldValue.serverTimestamp();
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          await ref
+              .read(firebaseFirestoreProvider)
+              .collection('users')
+              .doc(user.uid)
+              .set({
             'name': name,
             'email': user.email ?? _emailController.text.trim(),
             'plan': 'free',

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:harikyu_lab/core/providers/firebase_firestore_provider.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
@@ -39,7 +40,7 @@ class ProPlanRepository {
 }
 
 final proPlanRepositoryProvider = Provider<ProPlanRepository>(
-  (ref) => ProPlanRepository(FirebaseFirestore.instance),
+  (ref) => ProPlanRepository(ref.watch(firebaseFirestoreProvider)),
 );
 
 /// The current plan, read directly from `users/{uid}.plan` in Firestore.

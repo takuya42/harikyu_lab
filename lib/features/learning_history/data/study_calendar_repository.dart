@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:harikyu_lab/core/providers/firebase_firestore_provider.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
 import 'package:harikyu_lab/features/learning_history/domain/study_calendar_day.dart';
-import 'package:harikyu_lab/features/settings/data/settings_service.dart';
 
 const defaultDailyGoal = 10;
 const dailyGoalOptions = [5, 10, 20, 30, 50, 100];
