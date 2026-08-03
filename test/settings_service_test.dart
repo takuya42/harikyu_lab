@@ -5,6 +5,7 @@ void main() {
   test('学習関連のSharedPreferencesキーだけを初期化対象にする', () {
     const learningKeys = [
       'favorite_question_ids_v1',
+      'favorite_question_ids_v1_user_123',
       'study_statistics_v2_user_123_total_answered',
       'study_statistics_v2_guest_streak_days',
       'learning_history_v1_user_123',

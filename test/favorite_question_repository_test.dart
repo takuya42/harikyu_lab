@@ -17,12 +17,35 @@ void main() {
     expect(await repository.watchFavoriteIds().first, {'q001'});
     expect(
       preferences.getStringList(
-        SharedPreferencesFavoriteQuestionRepository.favoritesKey,
+        SharedPreferencesFavoriteQuestionRepository.keyForUser(null),
       ),
       ['q001'],
     );
 
     await repository.toggle('q001');
     expect(await repository.watchFavoriteIds().first, isEmpty);
+  });
+
+  test('お気に入りIDをユーザーごとに分離して再起動後も復元する', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final firstUser = SharedPreferencesFavoriteQuestionRepository(
+      preferences,
+      userId: 'user-a',
+    );
+    final secondUser = SharedPreferencesFavoriteQuestionRepository(
+      preferences,
+      userId: 'user-b',
+    );
+
+    await firstUser.toggle('q001');
+    await secondUser.toggle('q002');
+
+    final restartedFirstUser = SharedPreferencesFavoriteQuestionRepository(
+      preferences,
+      userId: 'user-a',
+    );
+    expect(await restartedFirstUser.watchFavoriteIds().first, {'q001'});
+    expect(await secondUser.watchFavoriteIds().first, {'q002'});
   });
 }

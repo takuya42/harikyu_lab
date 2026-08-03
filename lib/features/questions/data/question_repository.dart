@@ -263,6 +263,23 @@ final categoryQuestionsProvider =
   }
 });
 
+/// Loads every category so favorites created outside the quick-quiz category
+/// can also be resolved to their complete question data.
+final allQuestionsProvider = FutureProvider<List<Question>>((ref) async {
+  final categoryQuestions = await Future.wait(
+    questionSheetGids.keys.map(
+      (category) => ref.watch(categoryQuestionsProvider(category).future),
+    ),
+  );
+  final questionsById = <String, Question>{};
+  for (final questions in categoryQuestions) {
+    for (final question in questions) {
+      questionsById[question.id] = question;
+    }
+  }
+  return List.unmodifiable(questionsById.values);
+});
+
 /// Filters the category selected in the UI against the spreadsheet category.
 ///
 /// Older sheets stored the same value in `subject`, so that column remains a
