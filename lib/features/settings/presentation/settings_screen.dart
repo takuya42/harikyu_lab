@@ -53,7 +53,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _SettingsItem(
                       icon: Icons.login_rounded,
                       label: 'ログイン',
-                      onTap: () => context.go('/login'),
+                      onTap: () async {
+                        context.go('/login');
+                        return;
+                      },
                     )
                   else
                     _SettingsItem(
