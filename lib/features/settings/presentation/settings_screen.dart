@@ -78,11 +78,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   return _openPage(AppUrls.privacyPolicy);
                 }),
                 const Divider(height: 1, indent: 56),
-                _tile(Icons.mail_outline, 'お問い合わせ', () {
-                  return _run(() async {
-                    final service = await ref.read(settingsServiceProvider.future);
-                    await service.openContactEmail();
-                  });
+                _tile(Icons.support_agent_outlined, 'お問い合わせ', () {
+                  return _openPage(
+                    AppUrls.contactForm,
+                    failureMessage: 'お問い合わせページを開けませんでした',
+                  );
                 }),
               ],
             ),
@@ -205,13 +205,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }, deletingAccount: true);
   }
 
-  Future<void> _openPage(String url) async {
+  Future<void> _openPage(
+    String url, {
+    String failureMessage = 'ページを開けませんでした',
+  }) async {
     await _run(
       () async {
         final service = await ref.read(settingsServiceProvider.future);
         await service.openExternalUrl(url);
       },
-      failureMessage: 'ページを開けませんでした',
+      failureMessage: failureMessage,
     );
   }
 
