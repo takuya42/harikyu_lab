@@ -47,13 +47,9 @@ class SettingsService {
       key.startsWith('study_calendar_') ||
       key == 'daily_goal_v1';
 
-  static const _learningCollections = [
-    'favorites',
-    'learningHistory',
-    'statistics',
-    'studyDays',
-    'study_calendar',
-  ];
+  // Detailed answer history stays on-device. Firestore contains only the
+  // calendar aggregate used by the learning screens.
+  static const _learningCollections = ['study_calendar'];
 
   Future<void> deleteAccount() async {
     final user = _auth.currentUser;

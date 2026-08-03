@@ -28,11 +28,11 @@ class ProPlanRepository {
 
   /// This method is only called for a StoreKit purchase delivered by the
   /// in_app_purchase purchase stream.
-  Future<void> grantPro(String uid) =>
+  Future<void> grantPro(String uid, {required DateTime purchasedAt}) =>
       _firestore.collection('users').doc(uid).set({
         'plan': 'pro',
         'purchaseType': 'non_consumable',
-        'purchasedAt': FieldValue.serverTimestamp(),
+        'purchasedAt': Timestamp.fromDate(purchasedAt),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 }
@@ -186,7 +186,10 @@ class ProAccessController extends AsyncNotifier<ProAccessState> {
             message = '購入を反映するにはログインしてください。';
             continue;
           }
-          await ref.read(proPlanRepositoryProvider).grantPro(user.uid);
+          await ref.read(proPlanRepositoryProvider).grantPro(
+            user.uid,
+            purchasedAt: _purchaseDate(purchase),
+          );
           granted = true;
         } else if (purchase.status == PurchaseStatus.error) {
           message = purchase.error?.message ?? '購入に失敗しました。';
@@ -210,6 +213,13 @@ class ProAccessController extends AsyncNotifier<ProAccessState> {
       isPurchasing: pending,
       message: granted ? 'ご購入ありがとうございます。Pro機能を解放しました。' : message,
     ));
+  }
+
+  DateTime _purchaseDate(PurchaseDetails purchase) {
+    final milliseconds = int.tryParse(purchase.transactionDate ?? '');
+    return milliseconds == null
+        ? DateTime.now()
+        : DateTime.fromMillisecondsSinceEpoch(milliseconds);
   }
 
   void _handlePurchaseStreamError(Object error) {
