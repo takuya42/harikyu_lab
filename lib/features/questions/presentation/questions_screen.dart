@@ -45,13 +45,13 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   }
 
   Future<void> _start() async {
-    final isPro = ref.read(proAccessProvider).value?.isPro ?? false;
-    if (widget.subject != null && !isPro) {
+    final hasProPlan = ref.read(userPlanProvider).value == 'pro';
+    if (widget.subject != null && !hasProPlan) {
       if (mounted) await context.push('/pro');
       return;
     }
     final used = ref.read(dailyFreeUsageProvider).value ?? 0;
-    if (!isPro && used >= freeDailyQuestionLimit) {
+    if (!hasProPlan && used >= freeDailyQuestionLimit) {
       if (mounted) await context.push('/pro');
       return;
     }
@@ -92,7 +92,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         answeredAt: answeredAt,
         duration: answeredAt.difference(answerStartedAt),
       );
-      if (!(ref.read(proAccessProvider).value?.isPro ?? false)) {
+      if (ref.read(userPlanProvider).value != 'pro') {
         await ref.read(dailyFreeUsageProvider.notifier).recordAnswer();
       }
       _lastAnswerRecordedAt = answeredAt;
@@ -252,13 +252,15 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
             : items;
         if (_sessionQuestions == null) {
           final session = createStudySession(filteredItems);
-          final isPro = ref.read(proAccessProvider).value?.isPro ?? false;
+          final hasProPlan = ref.read(userPlanProvider).value == 'pro';
           final used = ref.read(dailyFreeUsageProvider).value ?? 0;
           final remaining = (freeDailyQuestionLimit - used).clamp(
             0,
             freeDailyQuestionLimit,
           );
-          _sessionQuestions = isPro ? session : session.take(remaining).toList();
+          _sessionQuestions = hasProPlan
+              ? session
+              : session.take(remaining).toList();
         }
         final session = _sessionQuestions!;
         if (session.isEmpty && widget.favoritesOnly) {

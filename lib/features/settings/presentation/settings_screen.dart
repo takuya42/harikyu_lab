@@ -33,7 +33,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).asData?.value;
     final colors = Theme.of(context).colorScheme;
-    final isPro = ref.watch(proAccessProvider).value?.isPro ?? false;
+    final hasProPlan = ref.watch(userPlanProvider).value == 'pro';
     return AppPage(
       title: '設定',
       backgroundColor: colors.surface,
@@ -48,8 +48,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: _SettingsCard(children: [
                 _SettingsItem(
                   icon: Icons.workspace_premium_outlined,
-                  label: isPro ? 'Pro版をご利用中' : 'Pro版にアップグレード（¥980）',
-                  onTap: () async => context.push('/pro'),
+                  label: hasProPlan ? 'Pro会員' : 'Pro版にアップグレード（¥980）',
+                  onTap: hasProPlan ? null : () async => context.push('/pro'),
                 ),
               ]),
             ),

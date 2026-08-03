@@ -88,8 +88,8 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
 
   Future<void> _selectQuestionCount(int? value) async {
     if (value == null) return;
-    final isPro = ref.read(proAccessProvider).value?.isPro ?? false;
-    if (!isPro && value != freeMockExamQuestionLimit) {
+    final hasProPlan = ref.read(userPlanProvider).value == 'pro';
+    if (!hasProPlan && value != freeMockExamQuestionLimit) {
       await context.push('/pro');
       return;
     }
@@ -139,8 +139,8 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
 
   int _effectiveQuestionCount(int available) {
     final configured = _questionCount == 0 ? available : _questionCount;
-    final isPro = ref.read(proAccessProvider).value?.isPro ?? false;
-    return isPro ? configured : configured.clamp(0, freeMockExamQuestionLimit);
+    final hasProPlan = ref.read(userPlanProvider).value == 'pro';
+    return hasProPlan ? configured : configured.clamp(0, freeMockExamQuestionLimit);
   }
 
   void _answer(int answer, StudyQuestion question) {
@@ -282,7 +282,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
         data: (questions) {
           if (questions.isEmpty) return _loadError('問題がありません。');
           _availableQuestions = questions;
-          final isPro = ref.watch(proAccessProvider).value?.isPro ?? false;
+          final hasProPlan = ref.watch(userPlanProvider).value == 'pro';
           final requested = _effectiveQuestionCount(questions.length);
           final count = questions.length < requested ? questions.length : requested;
           return ListView(key: const ValueKey('exam-introduction'), padding: const EdgeInsets.only(bottom: 16), children: [
@@ -302,8 +302,8 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
             const SizedBox(height: 10),
             Text('全問題から重複なく$count問を出題します。\n問題と選択肢の順番は毎回変わります。', textAlign: TextAlign.center, style: TextStyle(height: 1.6, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 26),
-            _ExamSettingsCard(questionCount: isPro ? _questionCount : freeMockExamQuestionLimit, timeLimitMinutes: _timeLimitMinutes, onQuestionCountChanged: _selectQuestionCount, onTimeLimitChanged: _selectTimeLimit),
-            if (!isPro) ...[
+            _ExamSettingsCard(questionCount: hasProPlan ? _questionCount : freeMockExamQuestionLimit, timeLimitMinutes: _timeLimitMinutes, onQuestionCountChanged: _selectQuestionCount, onTimeLimitChanged: _selectTimeLimit),
+            if (!hasProPlan) ...[
               const SizedBox(height: 12),
               TextButton.icon(onPressed: () => context.push('/pro'), icon: const Icon(Icons.workspace_premium_outlined), label: const Text('Pro版で模擬試験を無制限に')),
             ],

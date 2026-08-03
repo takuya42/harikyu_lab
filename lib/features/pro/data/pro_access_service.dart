@@ -21,10 +21,11 @@ class ProPlanRepository {
 
   final FirebaseFirestore _firestore;
 
-  Future<bool> isPro(String uid) async {
-    final document = await _firestore.collection('users').doc(uid).get();
-    return document.data()?['plan'] == 'pro';
-  }
+  Stream<String> watchPlan(String uid) => _firestore
+      .collection('users')
+      .doc(uid)
+      .snapshots()
+      .map((document) => document.data()?['plan'] == 'pro' ? 'pro' : 'free');
 
   /// This method is only called for a StoreKit purchase delivered by the
   /// in_app_purchase purchase stream.
@@ -41,9 +42,21 @@ final proPlanRepositoryProvider = Provider<ProPlanRepository>(
   (ref) => ProPlanRepository(FirebaseFirestore.instance),
 );
 
+/// The current plan, read directly from `users/{uid}.plan` in Firestore.
+///
+/// Missing users, missing/unknown values, and signed-out sessions are treated as
+/// free. No entitlement value is cached in local storage or purchase state.
+final userPlanProvider = StreamProvider<String>((ref) async* {
+  final user = await ref.watch(authStateProvider.future);
+  if (user == null) {
+    yield 'free';
+    return;
+  }
+  yield* ref.watch(proPlanRepositoryProvider).watchPlan(user.uid);
+});
+
 class ProAccessState {
   const ProAccessState({
-    this.isPro = false,
     this.isLoading = true,
     this.isPurchasing = false,
     this.storeAvailable = true,
@@ -51,7 +64,6 @@ class ProAccessState {
     this.message,
   });
 
-  final bool isPro;
   final bool isLoading;
   final bool isPurchasing;
   final bool storeAvailable;
@@ -59,14 +71,12 @@ class ProAccessState {
   final String? message;
 
   ProAccessState copyWith({
-    bool? isPro,
     bool? isLoading,
     bool? isPurchasing,
     bool? storeAvailable,
     ProductDetails? product,
     String? message,
   }) => ProAccessState(
-    isPro: isPro ?? this.isPro,
     isLoading: isLoading ?? this.isLoading,
     isPurchasing: isPurchasing ?? this.isPurchasing,
     storeAvailable: storeAvailable ?? this.storeAvailable,
@@ -87,7 +97,7 @@ class ProAccessController extends AsyncNotifier<ProAccessState> {
 
   @override
   Future<ProAccessState> build() async {
-    final user = await ref.watch(authStateProvider.future);
+    ref.watch(authStateProvider);
     _purchaseSubscription ??= _store.purchaseStream.listen(
       _handlePurchases,
       onError: _handlePurchaseStreamError,
@@ -97,20 +107,12 @@ class ProAccessController extends AsyncNotifier<ProAccessState> {
       _purchaseSubscription?.cancel();
     });
 
-    final isPro = user == null
-        ? false
-        : await ref.watch(proPlanRepositoryProvider).isPro(user.uid);
     final available = await _store.isAvailable();
     if (!available) {
-      return ProAccessState(
-        isPro: isPro,
-        isLoading: false,
-        storeAvailable: false,
-      );
+      return const ProAccessState(isLoading: false, storeAvailable: false);
     }
     final response = await _store.queryProductDetails({proProductId});
     return ProAccessState(
-      isPro: isPro,
       isLoading: false,
       product: response.productDetails.firstOrNull,
       message: response.error?.message,
@@ -208,7 +210,6 @@ class ProAccessController extends AsyncNotifier<ProAccessState> {
     if (!pending) _restoreTimer?.cancel();
     final current = state.value ?? const ProAccessState();
     state = AsyncData(current.copyWith(
-      isPro: granted || current.isPro,
       isLoading: false,
       isPurchasing: pending,
       message: granted ? 'ご購入ありがとうございます。Pro機能を解放しました。' : message,

@@ -53,7 +53,7 @@ class CategoriesScreen extends ConsumerWidget {
                       trailing:
                           const Icon(Icons.chevron_right_rounded, size: 28),
                       onTap: () async {
-                        if (!(ref.read(proAccessProvider).value?.isPro ?? false)) {
+                        if (ref.read(userPlanProvider).value != 'pro') {
                           await context.push('/pro');
                           return;
                         }

@@ -19,13 +19,13 @@ class ProPurchaseScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(proAccessProvider).value;
+    final hasProPlan = ref.watch(userPlanProvider).value == 'pro';
     ref.listen(proAccessProvider, (_, next) {
       final message = next.value?.message;
       if (message != null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       }
     });
-    final isPro = state?.isPro ?? false;
     final busy = state?.isLoading == true || state?.isPurchasing == true;
     return AppPage(
       title: 'Pro',
@@ -40,7 +40,7 @@ class ProPurchaseScreen extends ConsumerWidget {
               size: 72, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 12),
           Text(
-            isPro ? 'Pro版をご利用中です' : '学びを、もっと自由に。',
+            hasProPlan ? 'Pro版をご利用中です' : '学びを、もっと自由に。',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w900,
@@ -79,7 +79,7 @@ class ProPurchaseScreen extends ConsumerWidget {
           const SizedBox(height: 4),
           const Text('追加料金は発生しません。', textAlign: TextAlign.center),
           const SizedBox(height: 24),
-          if (!isPro)
+          if (!hasProPlan)
             FilledButton.icon(
               onPressed: busy || state?.product == null
                   ? null
@@ -92,11 +92,11 @@ class ProPurchaseScreen extends ConsumerWidget {
                   : const Icon(Icons.lock_open_rounded),
               label: const Text('Pro版を購入'),
             ),
-          if (!isPro && state?.storeAvailable == false) ...[
+          if (!hasProPlan && state?.storeAvailable == false) ...[
             const SizedBox(height: 10),
             const Text('現在ストアに接続できません。', textAlign: TextAlign.center),
           ],
-          if (!isPro)
+          if (!hasProPlan)
             TextButton(
               onPressed: busy
                   ? null
