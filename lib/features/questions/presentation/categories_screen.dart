@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/questions/domain/subjects.dart';
 
@@ -10,6 +9,11 @@ class CategoriesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AppPage(
         title: 'カテゴリ',
+        leading: IconButton(
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => context.pop(),
+        ),
         child: ListView(
           children: [
             const SizedBox(height: 8),
@@ -17,24 +21,44 @@ class CategoriesScreen extends StatelessWidget {
                 style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 16),
-            AppCard(
-              padding: EdgeInsets.zero,
-              child: Column(children: [
-                for (var index = 0; index < subjects.length; index++) ...[
-                  ListTile(
-                    leading: Icon(Icons.menu_book_outlined,
-                        color: Theme.of(context).colorScheme.primary),
-                    title: Text(subjects[index],
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => context.go(Uri(
-                      path: '/questions',
-                      queryParameters: {'subject': subjects[index]},
-                    ).toString()),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x120F172A),
+                    blurRadius: 14,
+                    offset: Offset(0, 4),
                   ),
-                  if (index < subjects.length - 1) const Divider(height: 1),
                 ],
-              ]),
+              ),
+              child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                clipBehavior: Clip.antiAlias,
+                child: Column(children: [
+                  for (var index = 0; index < subjects.length; index++) ...[
+                    ListTile(
+                      splashColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: .16),
+                      leading: Icon(Icons.menu_book_outlined,
+                          color: Theme.of(context).colorScheme.primary),
+                      title: Text(subjects[index],
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      trailing:
+                          const Icon(Icons.chevron_right_rounded, size: 28),
+                      onTap: () => context.go(Uri(
+                        path: '/questions',
+                        queryParameters: {'subject': subjects[index]},
+                      ).toString()),
+                    ),
+                    if (index < subjects.length - 1)
+                      const Divider(height: 1),
+                  ],
+                ]),
+              ),
             ),
           ],
         ),
