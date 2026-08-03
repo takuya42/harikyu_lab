@@ -2,18 +2,13 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:harikyu_lab/core/providers/shared_preferences_provider.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 const proProductId = 'harikyu_lab_pro';
 const proDisplayPrice = '¥980（税込・買い切り）';
 const freeDailyQuestionLimit = 10;
 const freeMockExamQuestionLimit = 20;
-
-const _dailyUsageDateKey = 'free_daily_usage_date_v1';
-const _dailyQuestionCountKey = 'free_daily_question_count_v1';
 
 /// The persisted entitlement is scoped to a Firebase Authentication user.
 class ProPlanRepository {
@@ -21,11 +16,11 @@ class ProPlanRepository {
 
   final FirebaseFirestore _firestore;
 
-  Stream<String> watchPlan(String uid) => _firestore
+  Stream<bool> watchIsPro(String uid) => _firestore
       .collection('users')
       .doc(uid)
       .snapshots()
-      .map((document) => document.data()?['plan'] == 'pro' ? 'pro' : 'free');
+      .map((document) => document.data()?['plan'] == 'pro');
 
   /// This method is only called for a StoreKit purchase delivered by the
   /// in_app_purchase purchase stream.
@@ -46,13 +41,13 @@ final proPlanRepositoryProvider = Provider<ProPlanRepository>(
 ///
 /// Missing users, missing/unknown values, and signed-out sessions are treated as
 /// free. No entitlement value is cached in local storage or purchase state.
-final userPlanProvider = StreamProvider<String>((ref) async* {
+final isProProvider = StreamProvider<bool>((ref) async* {
   final user = await ref.watch(authStateProvider.future);
   if (user == null) {
-    yield 'free';
+    yield false;
     return;
   }
-  yield* ref.watch(proPlanRepositoryProvider).watchPlan(user.uid);
+  yield* ref.watch(proPlanRepositoryProvider).watchIsPro(user.uid);
 });
 
 class ProAccessState {
@@ -237,37 +232,3 @@ class ProAccessController extends AsyncNotifier<ProAccessState> {
     state = AsyncData(current.copyWith(message: message));
   }
 }
-
-final dailyFreeUsageProvider =
-    AsyncNotifierProvider<DailyFreeUsageController, int>(
-      DailyFreeUsageController.new,
-    );
-
-class DailyFreeUsageController extends AsyncNotifier<int> {
-  late SharedPreferences _preferences;
-
-  @override
-  Future<int> build() async {
-    _preferences = await ref.watch(sharedPreferencesProvider.future);
-    return _readToday();
-  }
-
-  int _readToday() {
-    final today = _dateKey(DateTime.now());
-    if (_preferences.getString(_dailyUsageDateKey) != today) return 0;
-    return _preferences.getInt(_dailyQuestionCountKey) ?? 0;
-  }
-
-  Future<void> recordAnswer() async {
-    final today = _dateKey(DateTime.now());
-    final count = _readToday() + 1;
-    await _preferences.setString(_dailyUsageDateKey, today);
-    await _preferences.setInt(_dailyQuestionCountKey, count);
-    state = AsyncData(count);
-  }
-}
-
-String _dateKey(DateTime date) =>
-    '${date.year.toString().padLeft(4, '0')}-'
-    '${date.month.toString().padLeft(2, '0')}-'
-    '${date.day.toString().padLeft(2, '0')}';

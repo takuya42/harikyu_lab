@@ -88,7 +88,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
 
   Future<void> _selectQuestionCount(int? value) async {
     if (value == null) return;
-    final hasProPlan = ref.read(userPlanProvider).value == 'pro';
+    final hasProPlan = await ref.read(isProProvider.future);
     if (!hasProPlan && value != freeMockExamQuestionLimit) {
       await context.push('/pro');
       return;
@@ -137,10 +137,11 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     });
   }
 
-  int _effectiveQuestionCount(int available) {
+  int _effectiveQuestionCount(int available, {required bool isPro}) {
     final configured = _questionCount == 0 ? available : _questionCount;
-    final hasProPlan = ref.read(userPlanProvider).value == 'pro';
-    return hasProPlan ? configured : configured.clamp(0, freeMockExamQuestionLimit);
+    return isPro
+        ? configured
+        : configured.clamp(0, freeMockExamQuestionLimit);
   }
 
   void _answer(int answer, StudyQuestion question) {
@@ -282,8 +283,16 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
         data: (questions) {
           if (questions.isEmpty) return _loadError('問題がありません。');
           _availableQuestions = questions;
-          final hasProPlan = ref.watch(userPlanProvider).value == 'pro';
-          final requested = _effectiveQuestionCount(questions.length);
+          final plan = ref.watch(isProProvider);
+          if (plan.hasError) return _loadError(plan.error!);
+          final hasProPlan = plan.asData?.value;
+          if (hasProPlan == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final requested = _effectiveQuestionCount(
+            questions.length,
+            isPro: hasProPlan,
+          );
           final count = questions.length < requested ? questions.length : requested;
           return ListView(key: const ValueKey('exam-introduction'), padding: const EdgeInsets.only(bottom: 16), children: [
             const SizedBox(height: 18),
