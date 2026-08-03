@@ -65,17 +65,36 @@ OS: ${defaultTargetPlatform.name}
   }
 
   Future<void> resetLearningData() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final userDocument = _firestore.collection('users').doc(user.uid);
+      for (final collection in _learningCollections) {
+        await _deleteCollection(userDocument.collection(collection));
+      }
+    }
+
     final keys = _preferences.getKeys().where(
-      (key) =>
-          key == 'favorite_question_ids_v1' ||
-          key == 'mistake_question_ids_v1' ||
-          key.startsWith('study_statistics_') ||
-          key.startsWith('learning_history_') ||
-          key.startsWith('study_calendar_') ||
-          key == 'daily_goal_v1',
+      isLearningDataPreferenceKey,
     );
     await Future.wait(keys.map(_preferences.remove));
   }
+
+  static bool isLearningDataPreferenceKey(String key) =>
+      key == 'favorite_question_ids_v1' ||
+      key == 'mistake_question_ids_v1' ||
+      key.startsWith('study_statistics_') ||
+      key.startsWith('learning_history_') ||
+      key.startsWith('study_calendar_') ||
+      key == 'daily_goal_v1';
+
+  static const _learningCollections = [
+    'favorites',
+    'learningHistory',
+    'mistakes',
+    'statistics',
+    'studyDays',
+    'study_calendar',
+  ];
 
   Future<void> deleteAccount() async {
     final user = _auth.currentUser;
@@ -83,14 +102,7 @@ OS: ${defaultTargetPlatform.name}
 
     final userDocument = _firestore.collection('users').doc(user.uid);
     // Known per-user collections are removed before the parent document.
-    for (final name in const [
-      'favorites',
-      'learningHistory',
-      'mistakes',
-      'statistics',
-      'studyDays',
-      'study_calendar',
-    ]) {
+    for (final name in _learningCollections) {
       await _deleteCollection(userDocument.collection(name));
     }
     await userDocument.delete();
