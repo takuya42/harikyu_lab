@@ -7,7 +7,6 @@ import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/core/providers/firebase_firestore_provider.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 
-const _brandColor = Color(0xFF5A6DBA);
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key, required this.isRegistration});
@@ -296,11 +295,11 @@ class _AuthBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF5A6DBA), Color(0xFF8593D0), Color(0xFFF7F8FD), Colors.white],
+            colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.primaryContainer, Theme.of(context).colorScheme.surfaceContainerHighest, Theme.of(context).colorScheme.surface],
             stops: [0, .18, .43, .68],
           ),
         ),
@@ -344,9 +343,9 @@ class _AuthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         elevation: 7,
-        shadowColor: const Color(0x245A6DBA),
+        shadowColor: Theme.of(context).colorScheme.primary.withValues(alpha: .14),
         borderRadius: BorderRadius.circular(24),
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -473,7 +472,7 @@ class _AnimatedAuthButtonState extends State<_AnimatedAuthButton> {
               onPressed: widget.onPressed,
               style: ElevatedButton.styleFrom(
                 elevation: 2,
-                backgroundColor: _brandColor,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                 textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
+import 'package:harikyu_lab/core/theme/app_theme_extension.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -475,10 +476,10 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     final unanswered = total - _answeredCount;
     final accuracy = total == 0 ? 0 : (_correctCount * 100 / total).round();
     final stats = [
-      (Icons.check_circle_rounded, '正解', '$_correctCount問', const Color(0xFF168A62)),
-      (Icons.cancel_rounded, '不正解', '${_answeredCount - _correctCount}問', const Color(0xFFD14343)),
+      (Icons.check_circle_rounded, '正解', '$_correctCount問', Theme.of(context).extension<AppSurfaceTheme>()!.success),
+      (Icons.cancel_rounded, '不正解', '${_answeredCount - _correctCount}問', Theme.of(context).colorScheme.error),
       (Icons.timer_rounded, '回答時間', _formatDuration(ref.read(examTimerProvider).elapsed), Theme.of(context).colorScheme.primary),
-      (Icons.edit_note_rounded, '未回答', '$unanswered問', const Color(0xFF7A5BA7)),
+      (Icons.edit_note_rounded, '未回答', '$unanswered問', Theme.of(context).colorScheme.onSurfaceVariant),
     ];
     final colors = Theme.of(context).colorScheme;
     return Column(key: const ValueKey('mock-exam-result'), children: [
@@ -490,7 +491,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
       const SizedBox(height: 8),
       Text('よく頑張りました！', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colors.onSurfaceVariant, fontWeight: FontWeight.w600)),
       const SizedBox(height: 30),
-      Center(child: TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: accuracy / 100), duration: const Duration(seconds: 1), curve: Curves.easeOutCubic, builder: (_, value, __) => SizedBox(width: 232, height: 232, child: Stack(alignment: Alignment.center, children: [SizedBox.expand(child: CircularProgressIndicator(value: value, strokeWidth: 18, strokeCap: StrokeCap.round, backgroundColor: colors.surfaceContainerHighest)), Container(width: 176, height: 176, decoration: BoxDecoration(shape: BoxShape.circle, color: colors.surface, boxShadow: const [BoxShadow(color: Color(0x120F172A), blurRadius: 24, offset: Offset(0, 8))])), Column(mainAxisSize: MainAxisSize.min, children: [Text('正答率', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colors.onSurfaceVariant, fontWeight: FontWeight.w700)), const SizedBox(height: 2), Text('${(value * 100).round()}%', style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -2, color: colors.primary))])])))),
+      Center(child: TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: accuracy / 100), duration: const Duration(seconds: 1), curve: Curves.easeOutCubic, builder: (_, value, __) => SizedBox(width: 232, height: 232, child: Stack(alignment: Alignment.center, children: [SizedBox.expand(child: CircularProgressIndicator(value: value, strokeWidth: 18, strokeCap: StrokeCap.round, backgroundColor: colors.surfaceContainerHighest)), Container(width: 176, height: 176, decoration: BoxDecoration(shape: BoxShape.circle, color: colors.surface, boxShadow: [BoxShadow(color: Theme.of(context).colorScheme.shadow.withValues(alpha: .07), blurRadius: 24, offset: const Offset(0, 8))])), Column(mainAxisSize: MainAxisSize.min, children: [Text('正答率', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colors.onSurfaceVariant, fontWeight: FontWeight.w700)), const SizedBox(height: 2), Text('${(value * 100).round()}%', style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -2, color: colors.primary))])])))),
       const SizedBox(height: 36),
       GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: stats.length, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 1.42), itemBuilder: (_, index) {
         final stat = stats[index];
@@ -506,9 +507,9 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
           AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _ReviewLine(icon: Icons.help_rounded, label: '問題', value: item.question.text),
             const Divider(height: 24),
-            _ReviewLine(icon: Icons.check_rounded, label: '正解', value: item.choices[item.correctAnswerIndex], color: const Color(0xFF168A62)),
+            _ReviewLine(icon: Icons.check_rounded, label: '正解', value: item.choices[item.correctAnswerIndex], color: Theme.of(context).extension<AppSurfaceTheme>()!.success),
             const SizedBox(height: 10),
-            _ReviewLine(icon: Icons.close_rounded, label: 'あなたの回答', value: item.choices[_answers[item.question.id]!], color: const Color(0xFFD14343)),
+            _ReviewLine(icon: Icons.close_rounded, label: 'あなたの回答', value: item.choices[_answers[item.question.id]!], color: Theme.of(context).colorScheme.error),
             if (item.question.explanation.isNotEmpty) ...[const Divider(height: 24), _ReviewLine(icon: Icons.lightbulb_rounded, label: '解説', value: item.question.explanation)],
           ])),
           const SizedBox(height: 12),
@@ -550,7 +551,7 @@ class _TimerBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final seconds = timer.remaining.inSeconds;
-    final color = timer.hasTimeLimit && seconds <= 60 ? Theme.of(context).colorScheme.error : timer.hasTimeLimit && seconds <= 300 ? const Color(0xFFE87914) : Theme.of(context).colorScheme.primary;
+    final color = timer.hasTimeLimit && seconds <= 60 ? Theme.of(context).colorScheme.error : timer.hasTimeLimit && seconds <= 300 ? Theme.of(context).extension<AppSurfaceTheme>()!.warning : Theme.of(context).colorScheme.primary;
     return AnimatedContainer(duration: const Duration(milliseconds: 280), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: color.withValues(alpha: .12), borderRadius: BorderRadius.circular(99), border: Border.all(color: color.withValues(alpha: .25))), child: Row(children: [Icon(Icons.schedule_rounded, size: 18, color: color), const SizedBox(width: 6), AnimatedDefaultTextStyle(duration: const Duration(milliseconds: 280), style: Theme.of(context).textTheme.titleMedium!.copyWith(color: color, fontWeight: FontWeight.w900, fontFeatures: const [FontFeature.tabularFigures()]), child: Text(text))]));
   }
 }
@@ -567,7 +568,7 @@ class _StaggeredChoice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
-    return TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: 1), duration: Duration(milliseconds: 320 + index * 50), curve: Interval((index * .08).clamp(0.0, .35).toDouble(), 1, curve: Curves.easeOutCubic), builder: (_, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 12 * (1 - value)), child: child)), child: Padding(padding: const EdgeInsets.only(bottom: 12), child: _PressableChoice(selected: selected, color: primary, onTap: onTap, child: Row(children: [AnimatedContainer(duration: const Duration(milliseconds: 200), width: 36, height: 36, alignment: Alignment.center, decoration: BoxDecoration(shape: BoxShape.circle, color: selected ? primary : Theme.of(context).colorScheme.surfaceContainerHighest), child: Text('${index + 1}', style: TextStyle(fontWeight: FontWeight.w800, color: selected ? Theme.of(context).colorScheme.onPrimary : null))), const SizedBox(width: 14), Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, height: 1.4))), if (selected) Icon(showResult && correct ? Icons.check_circle_rounded : Icons.cancel_rounded, color: showResult && correct ? const Color(0xFF168A62) : Theme.of(context).colorScheme.error)]))));
+    return TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: 1), duration: Duration(milliseconds: 320 + index * 50), curve: Interval((index * .08).clamp(0.0, .35).toDouble(), 1, curve: Curves.easeOutCubic), builder: (_, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 12 * (1 - value)), child: child)), child: Padding(padding: const EdgeInsets.only(bottom: 12), child: _PressableChoice(selected: selected, color: primary, onTap: onTap, child: Row(children: [AnimatedContainer(duration: const Duration(milliseconds: 200), width: 36, height: 36, alignment: Alignment.center, decoration: BoxDecoration(shape: BoxShape.circle, color: selected ? primary : Theme.of(context).colorScheme.surfaceContainerHighest), child: Text('${index + 1}', style: TextStyle(fontWeight: FontWeight.w800, color: selected ? Theme.of(context).colorScheme.onPrimary : null))), const SizedBox(width: 14), Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, height: 1.4))), if (selected) Icon(showResult && correct ? Icons.check_circle_rounded : Icons.cancel_rounded, color: showResult && correct ? Theme.of(context).extension<AppSurfaceTheme>()!.success : Theme.of(context).colorScheme.error)]))));
   }
 }
 

@@ -23,11 +23,11 @@ class CategoriesScreen extends ConsumerWidget {
             DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(
-                    color: Color(0x120F172A),
+                    color: Theme.of(context).colorScheme.shadow.withValues(alpha: .07),
                     blurRadius: 14,
-                    offset: Offset(0, 4),
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
