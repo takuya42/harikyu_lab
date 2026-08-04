@@ -12,7 +12,6 @@ abstract final class AppColors {
   static const success = Color(0xFF5F7F5B);
   static const error = Color(0xFFC65A5A);
   static const warning = Color(0xFFB8874A);
-  static const info = Color(0xFF7B8063);
   static const subtle = Color(0xFFF0EDE4);
   static const selected = Color(0xFFEAE7D9);
   static const shadow = Color(0x140F172A);
@@ -22,6 +21,7 @@ abstract final class AppColors {
   static const onErrorContainer = Color(0xFF5B1D1D);
   static const surfaceContainer = Color(0xFFFAF7F0);
   static const surfaceContainerHigh = Color(0xFFF3F0E7);
+  static const surfaceContainerHighest = subtle;
   static const outlineVariant = Color(0xFFE6E1D6);
 
   static const darkBackground = Color(0xFF191913);
