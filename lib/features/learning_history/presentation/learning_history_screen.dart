@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:harikyu_lab/core/theme/app_theme_extension.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
@@ -199,9 +200,9 @@ class _StreakCard extends StatelessWidget {
               builder: (_, value, __) => Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.local_fire_department_rounded,
-                    color: Color(0xFFF0783C),
+                    color: Theme.of(context).extension<AppSurfaceTheme>()!.warning,
                     size: 36,
                   ),
                   const SizedBox(width: 6),
@@ -209,7 +210,7 @@ class _StreakCard extends StatelessWidget {
                     '${value.round()}日連続',
                     style: Theme.of(context).textTheme.displaySmall?.copyWith(
                           fontWeight: FontWeight.w900,
-                          color: const Color(0xFFF0783C),
+                          color: Theme.of(context).extension<AppSurfaceTheme>()!.warning,
                         ),
                   ),
                 ],
@@ -287,9 +288,9 @@ class _CalendarCard extends StatelessWidget {
                 final answers = record?.answeredCount ?? 0;
                 final today = _sameDay(day, DateTime.now());
                 final color = record?.goalAchieved ?? false
-                    ? const Color(0xFFFFD35A)
+                    ? Theme.of(context).extension<AppSurfaceTheme>()!.warning
                     : answers > 0
-                        ? const Color(0xFF69C780)
+                        ? Theme.of(context).extension<AppSurfaceTheme>()!.success
                         : Theme.of(context).colorScheme.surfaceContainerHighest;
                 return Material(
                   color: color,
@@ -308,9 +309,9 @@ class _CalendarCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Wrap(spacing: 14, runSpacing: 8, alignment: WrapAlignment.center, children: [
-            const _Legend(color: Color(0xFFE7E8EB), label: '学習なし'),
-            const _Legend(color: Color(0xFF69C780), label: '1問以上回答'),
-            _Legend(color: const Color(0xFFFFD35A), label: '目標達成（$dailyGoal問）'),
+            _Legend(color: Theme.of(context).colorScheme.outlineVariant, label: '学習なし'),
+            _Legend(color: Theme.of(context).extension<AppSurfaceTheme>()!.success, label: '1問以上回答'),
+            _Legend(color: Theme.of(context).extension<AppSurfaceTheme>()!.warning, label: '目標達成（$dailyGoal問）'),
           ]),
         ]),
       ),

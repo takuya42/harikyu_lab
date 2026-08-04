@@ -24,7 +24,7 @@ class _AppCardState extends State<AppCard> {
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(AppConstants.cardRadius),
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .55)),
-        boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 5))],
+        boxShadow: [BoxShadow(color: Theme.of(context).colorScheme.shadow.withValues(alpha: .06), blurRadius: 16, offset: const Offset(0, 5))],
       ),
       child: Material(
         color: Colors.transparent,
