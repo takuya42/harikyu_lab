@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +8,7 @@ import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/data/favorite_question_repository.dart';
+import 'package:harikyu_lab/features/questions/data/wrong_question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
 import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
 import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
@@ -15,10 +18,18 @@ import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
 import 'package:harikyu_lab/features/pro/data/usage_limit_service.dart';
 
 class QuestionsScreen extends ConsumerStatefulWidget {
-  const QuestionsScreen({super.key, this.subject, this.favoritesOnly = false});
+  const QuestionsScreen({
+    super.key,
+    this.subject,
+    this.favoritesOnly = false,
+    this.wrongQuestionsOnly = false,
+    this.initialQuestionId,
+  });
 
   final String? subject;
   final bool favoritesOnly;
+  final bool wrongQuestionsOnly;
+  final String? initialQuestionId;
 
   @override
   ConsumerState<QuestionsScreen> createState() => _QuestionsScreenState();
@@ -78,7 +89,11 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     final repository = await _statisticsRepository;
     repository.startSession();
     await ref.read(analyticsServiceProvider).startQuiz(
-      quizType: widget.subject == null ? 'quick_quiz' : 'category',
+      quizType: widget.wrongQuestionsOnly
+          ? 'wrong_questions'
+          : widget.subject == null
+              ? 'quick_quiz'
+              : 'category',
     );
     if (!mounted) return;
     setState(() {
@@ -114,6 +129,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         duration: answeredAt.difference(answerStartedAt),
       );
       await ref.read(usageLimitProvider.notifier).recordAnswer();
+      await _syncWrongQuestion(question, isCorrect: isCorrect);
       _lastAnswerRecordedAt = answeredAt;
       if (!mounted) return;
       setState(() {
@@ -124,6 +140,25 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     } finally {
       _isAnswering = false;
     }
+  }
+
+  Future<void> _syncWrongQuestion(
+    StudyQuestion question, {
+    required bool isCorrect,
+  }) async {
+    final repository = ref.read(wrongQuestionRepositoryProvider);
+    if (isCorrect) {
+      await repository.markCorrect(question.question.id);
+      ref.invalidate(wrongQuestionEntriesProvider);
+      return;
+    }
+    await repository.markWrong(
+      questionId: question.question.id,
+      categoryId: question.question.category.isNotEmpty
+          ? question.question.category
+          : question.question.subject,
+    );
+    ref.invalidate(wrongQuestionEntriesProvider);
   }
 
   Future<void> _recordAnswerInCalendar({
@@ -152,7 +187,11 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       await repository.endSession();
       await _saveHistory();
       await ref.read(analyticsServiceProvider).finishQuiz(
-        quizType: widget.subject == null ? 'quick_quiz' : 'category',
+        quizType: widget.wrongQuestionsOnly
+            ? 'wrong_questions'
+            : widget.subject == null
+                ? 'quick_quiz'
+                : 'category',
         questionCount: questionCount,
         correctCount: _correctCount,
       );
@@ -208,8 +247,12 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
 
   @override
   Widget build(BuildContext context) => AppPage(
-        title: widget.favoritesOnly ? 'お気に入り' : widget.subject ?? '一問一答',
-        leading: widget.favoritesOnly || widget.subject != null
+        title: widget.wrongQuestionsOnly
+            ? '間違えた問題'
+            : widget.favoritesOnly
+                ? 'お気に入り'
+                : widget.subject ?? '一問一答',
+        leading: widget.wrongQuestionsOnly || widget.favoritesOnly || widget.subject != null
             ? BackButton(onPressed: () => context.pop())
             : null,
         child: AnimatedSwitcher(
@@ -229,11 +272,13 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
           Icon(Icons.bolt_rounded, size: 64, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 24),
           Text(
-            widget.favoritesOnly
-                ? 'お気に入りをまとめて復習'
+            widget.wrongQuestionsOnly
+                ? '苦手問題をまとめて復習'
+                : widget.favoritesOnly
+                    ? 'お気に入りをまとめて復習'
                 : widget.subject == null
-                    ? 'すきま時間に知識を確認'
-                    : '${widget.subject}を集中学習',
+                        ? 'すきま時間に知識を確認'
+                        : '${widget.subject}を集中学習',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
@@ -244,7 +289,13 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
             style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 32),
-          if (widget.favoritesOnly &&
+          if (widget.wrongQuestionsOnly &&
+              (ref.watch(wrongQuestionIdsProvider).asData?.value.isEmpty ?? false))
+            const Padding(
+              padding: EdgeInsets.only(top: 20),
+              child: Text('間違えた問題はありません', textAlign: TextAlign.center),
+            )
+          else if (widget.favoritesOnly &&
               (ref.watch(favoriteQuestionIdsProvider).asData?.value.isEmpty ?? false))
             Padding(
               padding: const EdgeInsets.only(top: 20),
@@ -257,7 +308,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       );
 
   Widget _question(BuildContext context) {
-    final questions = widget.favoritesOnly
+    final questions = widget.favoritesOnly || widget.wrongQuestionsOnly
         ? ref.watch(allQuestionsProvider)
         : ref.watch(subjectQuestionsProvider(widget.subject));
     return questions.when(
@@ -265,15 +316,35 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       error: (error, _) => _loadError(error),
       data: (items) {
         final favoriteIds = ref.watch(favoriteQuestionIdsProvider);
-        if (widget.favoritesOnly && favoriteIds.isLoading) {
+        final wrongIds = widget.wrongQuestionsOnly
+            ? ref.watch(wrongQuestionIdsProvider)
+            : const AsyncData(<String>[]);
+        if (widget.favoritesOnly && favoriteIds.isLoading ||
+            widget.wrongQuestionsOnly && wrongIds.isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
-        final filteredItems = widget.favoritesOnly
+        var filteredItems = widget.favoritesOnly
             ? items
                 .where((question) =>
                     favoriteIds.asData?.value.contains(question.id) ?? false)
                 .toList()
             : items;
+        if (widget.wrongQuestionsOnly) {
+          final ids = wrongIds.asData?.value ?? const <String>[];
+          final questionsById = {for (final question in items) question.id: question};
+          filteredItems = [
+            for (final id in ids)
+              if (questionsById[id] != null) questionsById[id]!,
+          ];
+          final initialQuestionId = widget.initialQuestionId;
+          if (initialQuestionId != null) {
+            filteredItems.sort((first, second) {
+              if (first.id == initialQuestionId) return -1;
+              if (second.id == initialQuestionId) return 1;
+              return 0;
+            });
+          }
+        }
         if (_sessionQuestions == null) {
           final proPlan = ref.watch(isProProvider);
           if (proPlan.isLoading) {
@@ -285,7 +356,9 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
 
           // A Pro entitlement must bypass all free-usage reads and UI.
           if (hasProPlan) {
-            _sessionQuestions = createStudySession(filteredItems, isPro: true);
+            _sessionQuestions = widget.wrongQuestionsOnly
+                ? createStudySession(filteredItems, isPro: true, random: _NoShuffleRandom())
+                : createStudySession(filteredItems, isPro: true);
           } else {
             final usage = ref.watch(usageLimitProvider);
             if (usage.isLoading) {
@@ -303,13 +376,17 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
               0,
               freeDailyQuestionLimit,
             );
-            _sessionQuestions = createStudySession(
-              filteredItems,
-              isPro: false,
-            ).take(remaining).toList();
+            _sessionQuestions = (widget.wrongQuestionsOnly
+                    ? createStudySession(filteredItems, isPro: false, random: _NoShuffleRandom())
+                    : createStudySession(filteredItems, isPro: false))
+                .take(remaining)
+                .toList();
           }
         }
         final session = _sessionQuestions!;
+        if (session.isEmpty && widget.wrongQuestionsOnly) {
+          return const Center(child: Text('間違えた問題はありません'));
+        }
         if (session.isEmpty && widget.favoritesOnly) {
           return const Center(child: Text('お気に入りはまだありません'));
         }
@@ -482,4 +559,15 @@ class _ResultRow extends StatelessWidget {
           Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
         ]),
       );
+}
+
+class _NoShuffleRandom implements Random {
+  @override
+  bool nextBool() => false;
+
+  @override
+  double nextDouble() => 0;
+
+  @override
+  int nextInt(int max) => max - 1;
 }

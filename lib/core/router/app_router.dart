@@ -6,6 +6,7 @@ import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/features/learning_history/presentation/learning_history_screen.dart';
 import 'package:harikyu_lab/features/home/presentation/home_screen.dart';
 import 'package:harikyu_lab/features/questions/presentation/questions_screen.dart';
+import 'package:harikyu_lab/features/questions/presentation/wrong_questions_screen.dart';
 import 'package:harikyu_lab/features/questions/presentation/categories_screen.dart';
 import 'package:harikyu_lab/features/mock_exam/presentation/mock_exam_screen.dart';
 import 'package:harikyu_lab/features/settings/presentation/settings_screen.dart';
@@ -35,6 +36,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(name: 'Category', path: '/categories', builder: (_, _) => const CategoriesScreen()),
           GoRoute(name: 'Mock Exam', path: '/mock-exam', pageBuilder: (_, state) => _fadeSlidePage(state, const MockExamScreen())),
           GoRoute(path: '/favorites', builder: (_, _) => const QuestionsScreen(favoritesOnly: true)),
+          GoRoute(path: '/wrong-questions', builder: (_, _) => const WrongQuestionsScreen()),
+          GoRoute(
+            path: '/wrong-questions/session',
+            builder: (_, state) => QuestionsScreen(
+              wrongQuestionsOnly: true,
+              initialQuestionId: state.uri.queryParameters['questionId'],
+            ),
+          ),
           GoRoute(name: 'Calendar', path: '/history', pageBuilder: (_, state) => _fadeSlidePage(state, const LearningHistoryScreen())),
           GoRoute(name: 'Settings', path: '/settings', builder: (_, _) => const SettingsScreen()),
           GoRoute(path: '/pro', builder: (_, _) => const ProPurchaseScreen()),
