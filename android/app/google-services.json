@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "109593374629",
+    "project_id": "harikyu-lab",
+    "storage_bucket": "harikyu-lab.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:109593374629:android:9a336fe39032fc136b024c",
+        "android_client_info": {
+          "package_name": "com.harikyu_lab.harikyu_lab"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsBrqMNtNZZpdLEBdxUjzvhQDa4nr-psg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

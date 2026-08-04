@@ -40,49 +40,48 @@ class DefaultFirebaseOptions {
   // These sentinels deliberately keep the generated file compilable while
   // making an incomplete FlutterFire setup immediately identifiable. Running
   // `flutterfire configure` replaces them with the real project values.
+
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    appId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    messagingSenderId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    projectId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    authDomain: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    storageBucket: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    measurementId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
+    apiKey: 'AIzaSyDa1LwunxxK321S1CqkSupOg9GwQE2dbJc',
+    appId: '1:109593374629:web:59ba4a05001ee0f36b024c',
+    messagingSenderId: '109593374629',
+    projectId: 'harikyu-lab',
+    authDomain: 'harikyu-lab.firebaseapp.com',
+    storageBucket: 'harikyu-lab.firebasestorage.app',
+    measurementId: 'G-2YVJ01DCX6',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    appId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    messagingSenderId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    projectId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    storageBucket: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
+    apiKey: 'AIzaSyAsBrqMNtNZZpdLEBdxUjzvhQDa4nr-psg',
+    appId: '1:109593374629:android:9a336fe39032fc136b024c',
+    messagingSenderId: '109593374629',
+    projectId: 'harikyu-lab',
+    storageBucket: 'harikyu-lab.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    appId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    messagingSenderId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    projectId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    storageBucket: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
+    apiKey: 'AIzaSyDsBO5glMXNvYZSOBRjJ8okFr5szE7Z6p8',
+    appId: '1:109593374629:ios:72965d09d2f10ce36b024c',
+    messagingSenderId: '109593374629',
+    projectId: 'harikyu-lab',
+    storageBucket: 'harikyu-lab.firebasestorage.app',
     iosBundleId: 'com.harikyulab.harikyuLab',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    appId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    messagingSenderId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    projectId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    storageBucket: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
+    apiKey: 'AIzaSyDsBO5glMXNvYZSOBRjJ8okFr5szE7Z6p8',
+    appId: '1:109593374629:ios:72965d09d2f10ce36b024c',
+    messagingSenderId: '109593374629',
+    projectId: 'harikyu-lab',
+    storageBucket: 'harikyu-lab.firebasestorage.app',
     iosBundleId: 'com.harikyulab.harikyuLab',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    appId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    messagingSenderId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    projectId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    authDomain: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    storageBucket: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    measurementId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
+    apiKey: 'AIzaSyDa1LwunxxK321S1CqkSupOg9GwQE2dbJc',
+    appId: '1:109593374629:web:af6d78c182e481e86b024c',
+    messagingSenderId: '109593374629',
+    projectId: 'harikyu-lab',
+    authDomain: 'harikyu-lab.firebaseapp.com',
+    storageBucket: 'harikyu-lab.firebasestorage.app',
+    measurementId: 'G-GPPG5DGJG1',
   );
 }
