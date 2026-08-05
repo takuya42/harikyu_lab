@@ -540,7 +540,7 @@ void _goBack(BuildContext context) {
   if (context.canPop()) {
     context.pop();
   } else {
-    context.go('/');
+    context.go('/home');
   }
 }
 

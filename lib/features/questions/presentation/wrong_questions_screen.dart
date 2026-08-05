@@ -13,7 +13,7 @@ class WrongQuestionsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => AppPage(
-        title: '間違えた問題',
+        title: '間違えた模擬問題',
         leading: BackButton(onPressed: () => _goBack(context)),
         child: ref.watch(wrongQuestionEntriesProvider).when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -146,7 +146,7 @@ void _goBack(BuildContext context) {
   if (context.canPop()) {
     context.pop();
   } else {
-    context.go('/');
+    context.go('/home');
   }
 }
 
