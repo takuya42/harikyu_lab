@@ -129,7 +129,6 @@ class GoogleSheetsQuestionRepository implements QuestionRepository {
       '[QuestionRepository] first 5 categories='
       '${questions.take(5).map((question) => question.category).toList()}',
     );
-    if (questions.isEmpty) throw const FormatException('問題データが空です。');
     await _preferences.setString(
       _cacheKey,
       jsonEncode(questions.map((question) => question.toJson()).toList()),
