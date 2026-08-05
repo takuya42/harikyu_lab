@@ -99,12 +99,3 @@ final wrongQuestionEntriesProvider =
   final repository = ref.watch(wrongQuestionRepositoryProvider);
   yield* repository.watchWrongQuestions();
 });
-
-final wrongQuestionIdsProvider = Provider<AsyncValue<List<String>>>((ref) {
-  final entries = ref.watch(wrongQuestionEntriesProvider);
-  return entries.whenData(
-    (entries) => [
-      for (final entry in entries) entry.questionId,
-    ],
-  );
-});

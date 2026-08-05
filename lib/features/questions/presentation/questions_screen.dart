@@ -16,6 +16,12 @@ import 'package:harikyu_lab/features/learning_history/domain/learning_history.da
 import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
 import 'package:harikyu_lab/features/pro/data/usage_limit_service.dart';
 
+class WrongQuestionsSessionExtra {
+  const WrongQuestionsSessionExtra({required this.wrongQuestionIds});
+
+  final List<String> wrongQuestionIds;
+}
+
 class QuestionsScreen extends ConsumerStatefulWidget {
   const QuestionsScreen({
     super.key,
@@ -23,12 +29,14 @@ class QuestionsScreen extends ConsumerStatefulWidget {
     this.favoritesOnly = false,
     this.wrongQuestionsOnly = false,
     this.initialQuestionId,
+    this.wrongQuestionIds = const [],
   });
 
   final String? subject;
   final bool favoritesOnly;
   final bool wrongQuestionsOnly;
   final String? initialQuestionId;
+  final List<String> wrongQuestionIds;
 
   @override
   ConsumerState<QuestionsScreen> createState() => _QuestionsScreenState();
@@ -268,8 +276,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
             style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 32),
-          if (widget.wrongQuestionsOnly &&
-              (ref.watch(wrongQuestionIdsProvider).asData?.value.isEmpty ?? false))
+          if (widget.wrongQuestionsOnly && widget.wrongQuestionIds.isEmpty)
             const Padding(
               padding: EdgeInsets.only(top: 20),
               child: Text('間違えた問題はありません', textAlign: TextAlign.center),
@@ -295,11 +302,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       error: (error, _) => _loadError(error),
       data: (items) {
         final favoriteIds = ref.watch(favoriteQuestionIdsProvider);
-        final wrongIds = widget.wrongQuestionsOnly
-            ? ref.watch(wrongQuestionIdsProvider)
-            : const AsyncData(<String>[]);
-        if (widget.favoritesOnly && favoriteIds.isLoading ||
-            widget.wrongQuestionsOnly && wrongIds.isLoading) {
+        if (widget.favoritesOnly && favoriteIds.isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
         var filteredItems = widget.favoritesOnly
@@ -309,7 +312,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
                 .toList()
             : items;
         if (widget.wrongQuestionsOnly) {
-          final ids = wrongIds.asData?.value ?? const <String>[];
+          final ids = widget.wrongQuestionIds;
           final questionsById = {for (final question in items) question.id: question};
           filteredItems = [
             for (final id in ids)
