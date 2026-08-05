@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:harikyu_lab/core/constants/app_constants.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
@@ -48,7 +49,7 @@ class WrongQuestionsScreen extends ConsumerWidget {
       );
 }
 
-class _WrongQuestionCard extends StatelessWidget {
+class _WrongQuestionCard extends ConsumerWidget {
   const _WrongQuestionCard({
     required this.question,
     required this.wrongQuestionIds,
@@ -58,56 +59,124 @@ class _WrongQuestionCard extends StatelessWidget {
   final List<String> wrongQuestionIds;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
     final category = [question.subject, question.category]
         .where((value) => value.isNotEmpty)
         .join(' / ');
-    return AppCard(
-      onTap: () => context.push(
-        Uri(
-          path: '/wrong-questions/session',
-          queryParameters: {'questionId': question.id},
-        ).toString(),
-        extra: WrongQuestionsSessionExtra(
-          wrongQuestionIds: wrongQuestionIds,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.replay_outlined, color: colors.primary),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (category.isNotEmpty) ...[
-                  Text(
-                    category,
-                    style: TextStyle(
-                      color: colors.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                ],
-                Text(
-                  question.text,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-              ],
-            ),
+    return Dismissible(
+      key: ValueKey('wrong-question-${question.id}'),
+      direction: DismissDirection.endToStart,
+      background: _DeleteBackground(color: colors.error),
+      confirmDismiss: (_) => _confirmDelete(context, ref),
+      child: AppCard(
+        onTap: () => context.push(
+          Uri(
+            path: '/wrong-questions/session',
+            queryParameters: {'questionId': question.id},
+          ).toString(),
+          extra: WrongQuestionsSessionExtra(
+            wrongQuestionIds: wrongQuestionIds,
           ),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded, size: 28),
-        ],
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.replay_outlined, color: colors.primary),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (category.isNotEmpty) ...[
+                    Text(
+                      category,
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                  Text(
+                    question.text,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right_rounded, size: 28),
+          ],
+        ),
       ),
     );
   }
+
+  Future<bool> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('この問題を削除しますか？'),
+        content: const Text('間違えた模擬問題一覧から削除します。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('削除'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true) return false;
+
+    try {
+      await ref.read(wrongQuestionRepositoryProvider).markCorrect(question.id);
+      return true;
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('削除に失敗しました。時間をおいて再度お試しください。')),
+        );
+      }
+      return false;
+    }
+  }
+}
+
+class _DeleteBackground extends StatelessWidget {
+  const _DeleteBackground({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+        ),
+        child: const Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: EdgeInsets.only(right: 24),
+            child: Icon(
+              Icons.delete_outline_rounded,
+              color: Colors.white,
+              size: 30,
+            ),
+          ),
+        ),
+      );
 }
 
 class _EmptyWrongQuestions extends StatelessWidget {
