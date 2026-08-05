@@ -5,6 +5,7 @@ import 'package:harikyu_lab/core/theme/app_theme_extension.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
+import 'package:harikyu_lab/features/auth/presentation/login_required_dialog.dart';
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/study_calendar_day.dart';
 
@@ -18,12 +19,25 @@ class LearningHistoryScreen extends ConsumerStatefulWidget {
 class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen>
     with WidgetsBindingObserver {
   late DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+  bool _loginPromptShown = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     ref.read(analyticsServiceProvider).calendarOpened();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _promptForLoginOnce());
+  }
+
+  Future<void> _promptForLoginOnce() async {
+    if (!mounted || _loginPromptShown) return;
+    _loginPromptShown = true;
+    await _promptForLogin();
+  }
+
+  Future<void> _promptForLogin() async {
+    if (!mounted) return;
+    await promptLoginForLearningIfNeeded(context, ref, returnTo: '/history');
   }
 
   @override
@@ -63,7 +77,7 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen>
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
             child: user == null
-                ? const _LoginRequiredState()
+                ? _LoginRequiredState(onCreateAccount: _promptForLogin)
                 : days.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
@@ -527,11 +541,43 @@ class _ErrorState extends StatelessWidget {
 }
 
 class _LoginRequiredState extends StatelessWidget {
-  const _LoginRequiredState();
+  const _LoginRequiredState({required this.onCreateAccount});
+
+  final VoidCallback onCreateAccount;
 
   @override
-  Widget build(BuildContext context) => const Center(
-        child: Text('ログインしてください'),
+  Widget build(BuildContext context) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.school_outlined,
+              size: 56,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '学習データを保存できます',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '無料アカウントで学習カレンダーを記録しましょう。',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: onCreateAccount,
+              icon: const Icon(Icons.person_add_alt_1_rounded),
+              label: const Text('無料で始める'),
+            ),
+          ],
+        ),
       );
 }
 

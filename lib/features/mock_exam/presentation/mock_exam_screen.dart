@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
+import 'package:harikyu_lab/features/auth/presentation/login_required_dialog.dart';
 import 'package:harikyu_lab/features/mock_exam/application/exam_timer_controller.dart';
 import 'package:harikyu_lab/features/mock_exam/data/mock_exam_attempt_service.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
@@ -148,6 +149,13 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
     required bool isPro,
   }) async {
     if (_starting) return;
+    if (!await promptLoginForLearningIfNeeded(
+      context,
+      ref,
+      returnTo: '/mock-exam',
+    )) {
+      return;
+    }
     setState(() {
       _starting = true;
       if (!isPro) {

@@ -4,16 +4,38 @@ import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/constants/app_constants.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
+import 'package:harikyu_lab/features/auth/presentation/login_required_dialog.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/data/wrong_question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:harikyu_lab/features/questions/presentation/questions_screen.dart';
 
-class WrongQuestionsScreen extends ConsumerWidget {
+class WrongQuestionsScreen extends ConsumerStatefulWidget {
   const WrongQuestionsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => AppPage(
+  ConsumerState<WrongQuestionsScreen> createState() => _WrongQuestionsScreenState();
+}
+
+class _WrongQuestionsScreenState extends ConsumerState<WrongQuestionsScreen> {
+  bool _loginPromptShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _loginPromptShown) return;
+      _loginPromptShown = true;
+      await promptLoginForLearningIfNeeded(
+        context,
+        ref,
+        returnTo: '/wrong-questions',
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => AppPage(
         title: '間違えた模擬問題',
         leading: BackButton(onPressed: () => _goBack(context)),
         child: ref.watch(wrongQuestionEntriesProvider).when(

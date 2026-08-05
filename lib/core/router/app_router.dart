@@ -31,11 +31,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/questions',
             pageBuilder: (_, state) => _fadeSlidePage(state, QuestionsScreen(
               subject: state.uri.queryParameters['subject'],
+              autoStart: state.uri.queryParameters['start'] == '1',
             )),
           ),
           GoRoute(name: 'Category', path: '/categories', builder: (_, _) => const CategoriesScreen()),
           GoRoute(name: 'Mock Exam', path: '/mock-exam', pageBuilder: (_, state) => _fadeSlidePage(state, const MockExamScreen())),
-          GoRoute(path: '/favorites', builder: (_, _) => const QuestionsScreen(favoritesOnly: true)),
+          GoRoute(
+            path: '/favorites',
+            builder: (_, state) => QuestionsScreen(
+              favoritesOnly: true,
+              autoStart: state.uri.queryParameters['start'] == '1',
+            ),
+          ),
           GoRoute(path: '/wrong-questions', builder: (_, _) => const WrongQuestionsScreen()),
           GoRoute(
             path: '/wrong-questions/session',
@@ -47,14 +54,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 wrongQuestionIds: extra is WrongQuestionsSessionExtra
                     ? extra.wrongQuestionIds
                     : const [],
+                autoStart: state.uri.queryParameters['start'] == '1',
               );
             },
           ),
           GoRoute(name: 'Calendar', path: '/history', pageBuilder: (_, state) => _fadeSlidePage(state, const LearningHistoryScreen())),
           GoRoute(name: 'Settings', path: '/settings', builder: (_, _) => const SettingsScreen()),
           GoRoute(path: '/pro', builder: (_, _) => const ProPurchaseScreen()),
-          GoRoute(path: '/login', pageBuilder: (_, state) => _fadeSlidePage(state, const AuthScreen(isRegistration: false))),
-          GoRoute(path: '/register', pageBuilder: (_, state) => _fadeSlidePage(state, const AuthScreen(isRegistration: true))),
+          GoRoute(path: '/login', pageBuilder: (_, state) => _fadeSlidePage(state, AuthScreen(
+              isRegistration: false,
+              returnTo: state.uri.queryParameters['returnTo'],
+            ))),
+          GoRoute(path: '/register', pageBuilder: (_, state) => _fadeSlidePage(state, AuthScreen(
+              isRegistration: true,
+              returnTo: state.uri.queryParameters['returnTo'],
+            ))),
         ],
       ),
     ],
