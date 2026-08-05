@@ -7,7 +7,6 @@ import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/core/providers/firebase_firestore_provider.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 
-
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key, required this.isRegistration, this.returnTo});
   final bool isRegistration;
@@ -135,6 +134,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
 
+  void _goBack() {
+    FocusScope.of(context).unfocus();
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/home');
+  }
+
   String _messageFor(String code) => switch (code) {
         'invalid-email' => 'メールアドレスの形式を確認してください。',
         'weak-password' => 'パスワードは8文字以上で入力してください。',
@@ -163,6 +171,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           SafeArea(
             child: Stack(
               children: [
+                Positioned(
+                  left: 12,
+                  top: 8,
+                  child: _AuthBackButton(onPressed: _goBack),
+                ),
                 Center(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
@@ -237,6 +250,30 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AuthBackButton extends StatelessWidget {
+  const _AuthBackButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: colorScheme.surface.withValues(alpha: .86),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      elevation: 2,
+      shadowColor: colorScheme.shadow.withValues(alpha: .12),
+      child: IconButton(
+        tooltip: '戻る',
+        onPressed: onPressed,
+        icon: const Icon(Icons.arrow_back_rounded),
+        color: colorScheme.primary,
       ),
     );
   }
