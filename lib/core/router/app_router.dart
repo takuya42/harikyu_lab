@@ -39,10 +39,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/wrong-questions', builder: (_, _) => const WrongQuestionsScreen()),
           GoRoute(
             path: '/wrong-questions/session',
-            builder: (_, state) => QuestionsScreen(
-              wrongQuestionsOnly: true,
-              initialQuestionId: state.uri.queryParameters['questionId'],
-            ),
+            builder: (_, state) {
+              final extra = state.extra;
+              return QuestionsScreen(
+                wrongQuestionsOnly: true,
+                initialQuestionId: state.uri.queryParameters['questionId'],
+                wrongQuestionIds: extra is WrongQuestionsSessionExtra
+                    ? extra.wrongQuestionIds
+                    : const [],
+              );
+            },
           ),
           GoRoute(name: 'Calendar', path: '/history', pageBuilder: (_, state) => _fadeSlidePage(state, const LearningHistoryScreen())),
           GoRoute(name: 'Settings', path: '/settings', builder: (_, _) => const SettingsScreen()),

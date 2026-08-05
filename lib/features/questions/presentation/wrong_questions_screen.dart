@@ -6,6 +6,7 @@ import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/data/wrong_question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
+import 'package:harikyu_lab/features/questions/presentation/questions_screen.dart';
 
 class WrongQuestionsScreen extends ConsumerWidget {
   const WrongQuestionsScreen({super.key});
@@ -30,11 +31,15 @@ class WrongQuestionsScreen extends ConsumerWidget {
                             questionsById[entry.questionId]!,
                       ];
                       if (items.isEmpty) return const _EmptyWrongQuestions();
+                      final wrongQuestionIds = [
+                        for (final entry in entries) entry.questionId,
+                      ];
                       return ListView.separated(
                         itemCount: items.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 12),
                         itemBuilder: (context, index) => _WrongQuestionCard(
                           question: items[index],
+                          wrongQuestionIds: wrongQuestionIds,
                         ),
                       );
                     },
@@ -44,9 +49,13 @@ class WrongQuestionsScreen extends ConsumerWidget {
 }
 
 class _WrongQuestionCard extends StatelessWidget {
-  const _WrongQuestionCard({required this.question});
+  const _WrongQuestionCard({
+    required this.question,
+    required this.wrongQuestionIds,
+  });
 
   final Question question;
+  final List<String> wrongQuestionIds;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +69,9 @@ class _WrongQuestionCard extends StatelessWidget {
           path: '/wrong-questions/session',
           queryParameters: {'questionId': question.id},
         ).toString(),
+        extra: WrongQuestionsSessionExtra(
+          wrongQuestionIds: wrongQuestionIds,
+        ),
       ),
       child: Row(
         children: [
