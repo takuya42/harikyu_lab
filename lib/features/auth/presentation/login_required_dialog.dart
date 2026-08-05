@@ -34,19 +34,31 @@ class LoginRequiredDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return AlertDialog(
+      contentPadding: const EdgeInsets.fromLTRB(28, 16, 28, 8),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       icon: CircleAvatar(
         radius: 28,
         backgroundColor: colors.primaryContainer,
-        child: Icon(Icons.person_add_alt_1_rounded, color: colors.onPrimaryContainer),
+        child: Icon(
+          Icons.person_add_alt_1_rounded,
+          color: colors.onPrimaryContainer,
+        ),
       ),
-      title: const Text('無料で学習を始めましょう'),
-      content: const Text(
-        '無料アカウントを作成すると\n\n'
-        '・学習履歴を保存\n'
-        '・学習カレンダーを記録\n'
-        '・お気に入りを保存\n'
-        '・端末変更時もデータを引き継ぎ\n\n'
-        'もちろん無料でご利用いただけます。',
+      title: Text(
+        'ログインが必要です',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: colors.onSurface,
+            ),
+      ),
+      content: Text(
+        'この機能を利用するには、ログインまたは無料アカウントの作成が必要です。',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              height: 1.55,
+              color: colors.onSurfaceVariant,
+            ),
       ),
       actions: [
         TextButton(
@@ -55,7 +67,7 @@ class LoginRequiredDialog extends StatelessWidget {
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('無料で始める'),
+          child: const Text('ログイン / 新規登録'),
         ),
       ],
     );
