@@ -8,7 +8,6 @@ import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/data/favorite_question_repository.dart';
-import 'package:harikyu_lab/features/questions/data/wrong_question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
 import 'package:harikyu_lab/features/study_statistics/data/study_statistics_repository.dart';
 import 'package:harikyu_lab/features/learning_history/data/learning_history_repository.dart';
@@ -129,7 +128,6 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         duration: answeredAt.difference(answerStartedAt),
       );
       await ref.read(usageLimitProvider.notifier).recordAnswer();
-      await _syncWrongQuestion(question, isCorrect: isCorrect);
       _lastAnswerRecordedAt = answeredAt;
       if (!mounted) return;
       setState(() {
@@ -140,25 +138,6 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     } finally {
       _isAnswering = false;
     }
-  }
-
-  Future<void> _syncWrongQuestion(
-    StudyQuestion question, {
-    required bool isCorrect,
-  }) async {
-    final repository = ref.read(wrongQuestionRepositoryProvider);
-    if (isCorrect) {
-      await repository.markCorrect(question.question.id);
-      ref.invalidate(wrongQuestionEntriesProvider);
-      return;
-    }
-    await repository.markWrong(
-      questionId: question.question.id,
-      categoryId: question.question.category.isNotEmpty
-          ? question.question.category
-          : question.question.subject,
-    );
-    ref.invalidate(wrongQuestionEntriesProvider);
   }
 
   Future<void> _recordAnswerInCalendar({

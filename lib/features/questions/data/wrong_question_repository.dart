@@ -103,8 +103,8 @@ final wrongQuestionEntriesProvider =
 final wrongQuestionIdsProvider = Provider<AsyncValue<List<String>>>((ref) {
   final entries = ref.watch(wrongQuestionEntriesProvider);
   return entries.whenData(
-    (entries) => entries
-        .map((entry) => entry.questionId)
-        .toList(growable: false),
+    (entries) => [
+      for (final entry in entries) entry.questionId,
+    ],
   );
 });
