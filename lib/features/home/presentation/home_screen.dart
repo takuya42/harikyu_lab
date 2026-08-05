@@ -21,7 +21,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _StudyItem('模擬試験', '本番形式で確認', Icons.timer_outlined, '/mock-exam'),
     _StudyItem('カテゴリ', '分野を集中学習', Icons.grid_view_outlined, '/categories'),
     _StudyItem('お気に入り', '保存問題を復習', Icons.favorite_border, '/favorites'),
-    _StudyItem('間違えた模擬問題', '模擬試験で間違えた問題を復習', Icons.replay_outlined, '/wrong-questions'),
+    _StudyItem('間違えた模擬問題', '間違えた問題だけ復習', Icons.replay_outlined, '/wrong-questions'),
   ];
 
   @override
@@ -120,7 +120,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           crossAxisCount: columns,
                           mainAxisSpacing: 16,
                           crossAxisSpacing: 16,
-                          mainAxisExtent: 148,
+                          mainAxisExtent: columns == 1 ? 96 : 108,
                         ),
                         itemBuilder: (_, index) => _StudyCard(item: _items[index]),
                       );
@@ -357,18 +357,55 @@ class _StudyCard extends StatelessWidget {
   const _StudyCard({required this.item});
   final _StudyItem item;
   @override
-  Widget build(BuildContext context) => AppCard(
-    onTap: () => item.location == '/categories' || item.location == '/favorites'
-        ? context.push(item.location)
-        : context.go(item.location),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Icon(item.icon, color: Theme.of(context).colorScheme.primary, size: 28),
-      const Spacer(),
-      Text(item.title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 4),
-      Text(item.description, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return AppCard(
+      onTap: () => item.location == '/categories' || item.location == '/favorites'
+          ? context.push(item.location)
+          : context.go(item.location),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      child: Row(
+        children: [
+          Icon(item.icon, color: colors.primary, size: 30),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  item.description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: colors.onSurfaceVariant,
+            size: 28,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _StudyItem {

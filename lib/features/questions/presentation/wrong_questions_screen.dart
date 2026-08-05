@@ -120,7 +120,15 @@ class _WrongQuestionCard extends ConsumerWidget {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('この問題を削除しますか？'),
+        title: const FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'この問題を削除しますか？',
+            maxLines: 1,
+            softWrap: false,
+          ),
+        ),
         content: const Text('間違えた模擬問題一覧から削除します。'),
         actions: [
           TextButton(
