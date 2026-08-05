@@ -94,8 +94,6 @@ class WrongQuestionAuthenticationException implements Exception {
   String toString() => 'ログインしてください';
 }
 
-final wrongQuestionEntriesProvider =
-    StreamProvider<List<WrongQuestionEntry>>((ref) async* {
-  final repository = ref.watch(wrongQuestionRepositoryProvider);
-  yield* repository.watchWrongQuestions();
-});
+final wrongQuestionEntriesProvider = StreamProvider<List<WrongQuestionEntry>>(
+  (ref) => ref.watch(wrongQuestionRepositoryProvider).watchWrongQuestions(),
+);

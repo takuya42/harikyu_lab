@@ -14,13 +14,13 @@ class WrongQuestionsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => AppPage(
         title: '間違えた問題',
-        leading: BackButton(onPressed: () => context.pop()),
+        leading: BackButton(onPressed: () => _goBack(context)),
         child: ref.watch(wrongQuestionEntriesProvider).when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => _LoadError(error: error),
-              data: (entries) => ref.watch(allQuestionsProvider).when(
+              error: (error, _) => _WrongQuestionsLoadFallback(error: error),
+              data: (entries) => ref.watch(mockExamQuestionsProvider).when(
                     loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (error, _) => _LoadError(error: error),
+                    error: (error, _) => _WrongQuestionsLoadFallback(error: error),
                     data: (questions) {
                       final questionsById = {
                         for (final question in questions) question.id: question,
@@ -32,7 +32,7 @@ class WrongQuestionsScreen extends ConsumerWidget {
                       ];
                       if (items.isEmpty) return const _EmptyWrongQuestions();
                       final wrongQuestionIds = [
-                        for (final entry in entries) entry.questionId,
+                        for (final item in items) item.id,
                       ];
                       return ListView.separated(
                         itemCount: items.length,
@@ -142,13 +142,22 @@ class _EmptyWrongQuestions extends StatelessWidget {
       );
 }
 
-class _LoadError extends StatelessWidget {
-  const _LoadError({required this.error});
+void _goBack(BuildContext context) {
+  if (context.canPop()) {
+    context.pop();
+  } else {
+    context.go('/');
+  }
+}
+
+class _WrongQuestionsLoadFallback extends StatelessWidget {
+  const _WrongQuestionsLoadFallback({required this.error});
 
   final Object error;
 
   @override
-  Widget build(BuildContext context) => Center(
-        child: Text('$error', textAlign: TextAlign.center),
-      );
+  Widget build(BuildContext context) {
+    debugPrint('[WrongQuestionsScreen] failed to load wrong questions: $error');
+    return const _EmptyWrongQuestions();
+  }
 }

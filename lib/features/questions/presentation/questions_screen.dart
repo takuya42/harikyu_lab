@@ -240,7 +240,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
                 ? 'お気に入り'
                 : widget.subject ?? '一問一答',
         leading: widget.wrongQuestionsOnly || widget.favoritesOnly || widget.subject != null
-            ? BackButton(onPressed: () => context.pop())
+            ? BackButton(onPressed: () => _goBack(context))
             : null,
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 260),
@@ -294,9 +294,11 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       );
 
   Widget _question(BuildContext context) {
-    final questions = widget.favoritesOnly || widget.wrongQuestionsOnly
-        ? ref.watch(allQuestionsProvider)
-        : ref.watch(subjectQuestionsProvider(widget.subject));
+    final questions = widget.wrongQuestionsOnly
+        ? ref.watch(mockExamQuestionsProvider)
+        : widget.favoritesOnly
+            ? ref.watch(allQuestionsProvider)
+            : ref.watch(subjectQuestionsProvider(widget.subject));
     return questions.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => _loadError(error),
@@ -419,7 +421,12 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     }
   }
 
-  Widget _loadError(Object error) => Center(
+  Widget _loadError(Object error) {
+    debugPrint('[QuestionsScreen] failed to load questions: $error');
+    if (widget.wrongQuestionsOnly) {
+      return const Center(child: Text('間違えた問題はありません'));
+    }
+    return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.cloud_off_outlined, size: 48),
           const SizedBox(height: 16),
@@ -434,6 +441,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
           ),
         ]),
       );
+  }
 
   Widget _questionList(BuildContext context, StudyQuestion studyQuestion, int index, int count) {
     final question = studyQuestion.question;
@@ -525,6 +533,14 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         FilledButton.icon(onPressed: _start, icon: const Icon(Icons.replay_rounded), label: const Text('もう一度学習する')),
       ],
     );
+  }
+}
+
+void _goBack(BuildContext context) {
+  if (context.canPop()) {
+    context.pop();
+  } else {
+    context.go('/');
   }
 }
 

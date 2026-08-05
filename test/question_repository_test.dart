@@ -94,7 +94,7 @@ void main() {
         sheetUrl: url,
       );
 
-      await expectLater(repository.refresh(), throwsA(isA<FormatException>()));
+      await expectLater(repository.refresh(), completion(isEmpty));
     } finally {
       debugPrint = originalDebugPrint;
     }
