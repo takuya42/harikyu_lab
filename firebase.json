@@ -1,1 +1,45 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"harikyu-lab","appId":"1:109593374629:android:9a336fe39032fc136b024c","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"harikyu-lab","appId":"1:109593374629:ios:72965d09d2f10ce36b024c","uploadDebugSymbols":true,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"macos":{"default":{"projectId":"harikyu-lab","appId":"1:109593374629:ios:72965d09d2f10ce36b024c","uploadDebugSymbols":true,"fileOutput":"macos/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"harikyu-lab","configurations":{"android":"1:109593374629:android:9a336fe39032fc136b024c","ios":"1:109593374629:ios:72965d09d2f10ce36b024c","macos":"1:109593374629:ios:72965d09d2f10ce36b024c","web":"1:109593374629:web:59ba4a05001ee0f36b024c","windows":"1:109593374629:web:af6d78c182e481e86b024c"}}}}}}
+{
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "harikyu-lab",
+                    "appId": "1:109593374629:android:9a336fe39032fc136b024c",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "ios": {
+                "default": {
+                    "projectId": "harikyu-lab",
+                    "appId": "1:109593374629:ios:72965d09d2f10ce36b024c",
+                    "uploadDebugSymbols": true,
+                    "fileOutput": "ios/Runner/GoogleService-Info.plist"
+                }
+            },
+            "macos": {
+                "default": {
+                    "projectId": "harikyu-lab",
+                    "appId": "1:109593374629:ios:72965d09d2f10ce36b024c",
+                    "uploadDebugSymbols": true,
+                    "fileOutput": "macos/Runner/GoogleService-Info.plist"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "harikyu-lab",
+                    "configurations": {
+                        "android": "1:109593374629:android:9a336fe39032fc136b024c",
+                        "ios": "1:109593374629:ios:72965d09d2f10ce36b024c",
+                        "macos": "1:109593374629:ios:72965d09d2f10ce36b024c",
+                        "web": "1:109593374629:web:59ba4a05001ee0f36b024c",
+                        "windows": "1:109593374629:web:af6d78c182e481e86b024c"
+                    }
+                }
+            }
+        }
+    },
+    "functions": {
+        "source": "functions",
+        "runtime": "nodejs22"
+    }
+}
