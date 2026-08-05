@@ -72,11 +72,15 @@ class ProPurchaseScreen extends ConsumerWidget {
                 ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            '一度の購入で、すべてのPro機能をご利用いただけます。',
-            textAlign: TextAlign.center,
+          const FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              '一度の購入で、すべてのPro機能をご利用いただけます。',
+              maxLines: 1,
+              textAlign: TextAlign.center,
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           const Text('追加料金は発生しません。', textAlign: TextAlign.center),
           const SizedBox(height: 24),
           if (!hasProPlan)
