@@ -5,6 +5,7 @@ import 'package:harikyu_lab/features/mock_exam/data/mock_exam_attempt_service.da
 import 'package:harikyu_lab/features/mock_exam/presentation/mock_exam_screen.dart';
 import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
+import 'package:harikyu_lab/features/questions/data/wrong_question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,10 +28,28 @@ class _DeniedAttemptService implements MockExamAttemptService {
   Future<bool> tryStart({required bool isPro}) async => false;
 }
 
+class _FakeWrongQuestionRepository implements WrongQuestionRepository {
+  @override
+  Stream<List<WrongQuestionEntry>> watchWrongQuestions() =>
+      Stream.value(const []);
+
+  @override
+  Future<void> markCorrect(String questionId) async {}
+
+  @override
+  Future<void> markWrong({
+    required String questionId,
+    required String categoryId,
+  }) async {}
+}
+
 final _commonOverrides = [
   isProProvider.overrideWith((ref) => Stream.value(false)),
   mockExamAttemptServiceProvider.overrideWithValue(_AllowedAttemptService()),
   mockExamQuestionsProvider.overrideWith((ref) => Stream.value(_questions)),
+  wrongQuestionRepositoryProvider.overrideWithValue(
+    _FakeWrongQuestionRepository(),
+  ),
 ];
 
 void main() {

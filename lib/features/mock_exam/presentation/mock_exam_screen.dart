@@ -12,6 +12,7 @@ import 'package:harikyu_lab/core/widgets/app_page.dart';
 import 'package:harikyu_lab/features/mock_exam/application/exam_timer_controller.dart';
 import 'package:harikyu_lab/features/mock_exam/data/mock_exam_attempt_service.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
+import 'package:harikyu_lab/features/questions/data/wrong_question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/question.dart';
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -210,10 +211,34 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
         _incorrectQuestions.add(question);
       }
     });
+    final isCorrect = answer == question.correctAnswerIndex;
     unawaited(ref.read(analyticsServiceProvider).questionAnswered(
       questionId: question.question.id,
-      isCorrect: answer == question.correctAnswerIndex,
+      isCorrect: isCorrect,
     ));
+    unawaited(_syncWrongQuestion(question, isCorrect: isCorrect));
+  }
+
+  Future<void> _syncWrongQuestion(
+    StudyQuestion question, {
+    required bool isCorrect,
+  }) async {
+    try {
+      final repository = ref.read(wrongQuestionRepositoryProvider);
+      if (isCorrect) {
+        await repository.markCorrect(question.question.id);
+      } else {
+        await repository.markWrong(
+          questionId: question.question.id,
+          categoryId: question.question.category.isNotEmpty
+              ? question.question.category
+              : question.question.subject,
+        );
+      }
+      ref.invalidate(wrongQuestionEntriesProvider);
+    } on WrongQuestionAuthenticationException {
+      // Wrong-question sync is available only after sign-in.
+    }
   }
 
   Future<void> _next() async {
