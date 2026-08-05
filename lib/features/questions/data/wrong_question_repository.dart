@@ -100,8 +100,11 @@ final wrongQuestionEntriesProvider =
   yield* repository.watchWrongQuestions();
 });
 
-final wrongQuestionIdsProvider = StreamProvider<List<String>>((ref) async* {
-  await for (final entries in ref.watch(wrongQuestionEntriesProvider.stream)) {
-    yield entries.map((entry) => entry.questionId).toList(growable: false);
-  }
+final wrongQuestionIdsProvider = Provider<AsyncValue<List<String>>>((ref) {
+  final entries = ref.watch(wrongQuestionEntriesProvider);
+  return entries.whenData(
+    (entries) => entries
+        .map((entry) => entry.questionId)
+        .toList(growable: false),
+  );
 });
