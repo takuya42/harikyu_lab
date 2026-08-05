@@ -9,8 +9,9 @@ import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
 
 
 class AuthScreen extends ConsumerStatefulWidget {
-  const AuthScreen({super.key, required this.isRegistration});
+  const AuthScreen({super.key, required this.isRegistration, this.returnTo});
   final bool isRegistration;
+  final String? returnTo;
 
   @override
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
@@ -98,7 +99,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       } else {
         await ref.read(analyticsServiceProvider).login();
       }
-      if (mounted) context.go('/home');
+      if (mounted) context.go(widget.returnTo ?? '/home');
     } on FirebaseAuthException catch (error) {
       if (mounted) _showError(_messageFor(error.code));
     } on FirebaseException catch (error) {
@@ -210,7 +211,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                 TextButton(
                                   onPressed: _submitting
                                       ? null
-                                      : () => context.pushReplacement(isRegistration ? '/login' : '/register'),
+                                      : () {
+                                          final path = isRegistration ? '/login' : '/register';
+                                          final returnTo = widget.returnTo;
+                                          context.pushReplacement(
+                                            returnTo == null
+                                                ? path
+                                                : Uri(
+                                                    path: path,
+                                                    queryParameters: {'returnTo': returnTo},
+                                                  ).toString(),
+                                          );
+                                        },
                                   child: Text(isRegistration ? 'ログイン' : '新規登録'),
                                 ),
                               ],

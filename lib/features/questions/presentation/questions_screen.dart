@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
+import 'package:harikyu_lab/features/auth/presentation/login_required_dialog.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/data/favorite_question_repository.dart';
 import 'package:harikyu_lab/features/questions/domain/study_session.dart';
@@ -30,6 +31,7 @@ class QuestionsScreen extends ConsumerStatefulWidget {
     this.wrongQuestionsOnly = false,
     this.initialQuestionId,
     this.wrongQuestionIds = const [],
+    this.autoStart = false,
   });
 
   final String? subject;
@@ -37,6 +39,7 @@ class QuestionsScreen extends ConsumerStatefulWidget {
   final bool wrongQuestionsOnly;
   final String? initialQuestionId;
   final List<String> wrongQuestionIds;
+  final bool autoStart;
 
   @override
   ConsumerState<QuestionsScreen> createState() => _QuestionsScreenState();
@@ -62,9 +65,34 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     _statisticsRepository = ref.read(
       studyStatisticsRepositoryProvider.future,
     );
+    if (widget.autoStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isStudying && !_isFinished) _start();
+      });
+    } else if (widget.favoritesOnly || widget.wrongQuestionsOnly) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          promptLoginForLearningIfNeeded(
+            context,
+            ref,
+            returnTo: GoRouterState.of(context).uri.toString(),
+          );
+        }
+      });
+    }
   }
 
   Future<void> _start() async {
+    final returnTo = Uri(
+      path: GoRouterState.of(context).uri.path,
+      queryParameters: {
+        ...GoRouterState.of(context).uri.queryParameters,
+        'start': '1',
+      },
+    ).toString();
+    if (!await promptLoginForLearningIfNeeded(context, ref, returnTo: returnTo)) {
+      return;
+    }
     final hasProPlan = await ref.read(isProProvider.future);
     debugPrint('[QuestionsScreen] isProProvider=$hasProPlan');
     if (hasProPlan) {
@@ -455,6 +483,10 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
             return IconButton(
               tooltip: isFavorite ? 'お気に入りから削除' : 'お気に入りに追加',
               onPressed: () async {
+                final returnTo = GoRouterState.of(context).uri.toString();
+                if (!await promptLoginForLearningIfNeeded(context, ref, returnTo: returnTo)) {
+                  return;
+                }
                 final repository = await ref.read(favoriteQuestionRepositoryProvider.future);
                 await repository.toggle(question.id);
                 if (isFavorite) {
