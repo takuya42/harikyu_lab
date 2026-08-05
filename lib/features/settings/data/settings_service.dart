@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/core/providers/firebase_firestore_provider.dart';
 import 'package:harikyu_lab/core/providers/shared_preferences_provider.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -35,6 +39,10 @@ class SettingsService {
       }
     }
 
+    await resetLocalLearningData();
+  }
+
+  Future<void> resetLocalLearningData() async {
     final keys = _preferences.getKeys().where(
       isLearningDataPreferenceKey,
     );
@@ -56,14 +64,53 @@ class SettingsService {
     final user = _auth.currentUser;
     if (user == null) throw StateError('ログインが必要です。');
 
-    final userDocument = _firestore.collection('users').doc(user.uid);
-    // Known per-user collections are removed before the parent document.
-    for (final name in _learningCollections) {
-      await _deleteCollection(userDocument.collection(name));
+    await _deleteAccountWithCloudFunction(user);
+    await resetLocalLearningData();
+  }
+
+  Future<void> _deleteAccountWithCloudFunction(User user) async {
+    final projectId = Firebase.app().options.projectId;
+    if (projectId == null || projectId.isEmpty) {
+      throw StateError('FirebaseプロジェクトIDを取得できませんでした。');
     }
-    await userDocument.delete();
-    await user.delete();
-    await resetLearningData();
+
+    final idToken = await user.getIdToken(true);
+    if (idToken == null || idToken.isEmpty) {
+      throw StateError('認証情報を取得できませんでした。');
+    }
+
+    final response = await http.post(
+      Uri.https(
+        'us-central1-$projectId.cloudfunctions.net',
+        'deleteCurrentUserAccount',
+      ),
+      headers: {
+        'Authorization': 'Bearer $idToken',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'data': <String, Object?>{}}),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) return;
+
+    final message = _callableErrorMessage(response.body);
+    throw StateError(message ?? '退会処理に失敗しました。時間をおいてもう一度お試しください。');
+  }
+
+  String? _callableErrorMessage(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final error = decoded['error'];
+        if (error is Map<String, dynamic>) {
+          final message = error['message'];
+          if (message is String && message.isNotEmpty) return message;
+        }
+      }
+    } on FormatException {
+      return null;
+    }
+    return null;
   }
 
   Future<void> _deleteCollection(

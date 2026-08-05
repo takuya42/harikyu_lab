@@ -256,7 +256,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ? '退会処理に失敗しました。時間をおいてもう一度お試しください。'
             : '認証処理に失敗しました。もう一度お試しください。');
       }
-    } on Object {
+    } on Object catch (error) {
+      if (deletingAccount && error is StateError) {
+        _showMessage(error.message);
+        return;
+      }
       _showMessage(failureMessage ??
           (deletingAccount
               ? 'ユーザーデータの削除に失敗しました。通信状態を確認してください。'
