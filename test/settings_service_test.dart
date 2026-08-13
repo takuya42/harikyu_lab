@@ -26,4 +26,21 @@ void main() {
       isFalse,
     );
   });
+
+  test('購入状態と本日の無料回答数は学習データの初期化対象にしない', () {
+    expect(
+      SettingsService.isLearningDataPreferenceKey('pro_entitlement_v1'),
+      isFalse,
+    );
+    expect(
+      SettingsService.isLearningDataPreferenceKey(
+        'free_daily_question_count_v1',
+      ),
+      isFalse,
+    );
+    expect(
+      SettingsService.isLearningDataPreferenceKey('free_daily_usage_date_v1'),
+      isFalse,
+    );
+  });
 }
