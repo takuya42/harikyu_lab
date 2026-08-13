@@ -9,8 +9,9 @@ const _dailyQuestionCountKey = 'free_daily_question_count_v1';
 
 /// Applies free usage limits using [isProProvider] as the entitlement source.
 ///
-/// The local store contains only the free user's daily answer count. Pro status
-/// is always obtained from `users/{uid}.plan` in Firestore and is never cached.
+/// The local store keeps the free user's daily answer count independently from
+/// learning data. Pro status may come from App Store purchase state or the
+/// signed-in user's existing Firestore plan.
 final usageLimitProvider = AsyncNotifierProvider<UsageLimitService, int>(
   UsageLimitService.new,
 );
