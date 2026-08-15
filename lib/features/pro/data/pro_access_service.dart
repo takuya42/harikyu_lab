@@ -129,13 +129,59 @@ final proAccessProvider =
       ProAccessController.new,
     );
 
+/// StoreKit boundary kept independent from Firebase Authentication. This also
+/// makes it possible to verify that guest purchase and restore actions call the
+/// App Store directly without introducing an account prerequisite.
+abstract interface class ProStore {
+  Stream<List<PurchaseDetails>> get purchaseStream;
+
+  Future<bool> isAvailable();
+  Future<ProductDetailsResponse> queryProductDetails(Set<String> identifiers);
+  Future<bool> buyNonConsumable({required PurchaseParam purchaseParam});
+  Future<void> restorePurchases();
+  Future<void> completePurchase(PurchaseDetails purchase);
+}
+
+class InAppPurchaseProStore implements ProStore {
+  InAppPurchaseProStore(this._store);
+
+  final InAppPurchase _store;
+
+  @override
+  Stream<List<PurchaseDetails>> get purchaseStream => _store.purchaseStream;
+
+  @override
+  Future<bool> isAvailable() => _store.isAvailable();
+
+  @override
+  Future<ProductDetailsResponse> queryProductDetails(
+    Set<String> identifiers,
+  ) => _store.queryProductDetails(identifiers);
+
+  @override
+  Future<bool> buyNonConsumable({required PurchaseParam purchaseParam}) =>
+      _store.buyNonConsumable(purchaseParam: purchaseParam);
+
+  @override
+  Future<void> restorePurchases() => _store.restorePurchases();
+
+  @override
+  Future<void> completePurchase(PurchaseDetails purchase) =>
+      _store.completePurchase(purchase);
+}
+
+final proStoreProvider = Provider<ProStore>(
+  (_) => InAppPurchaseProStore(InAppPurchase.instance),
+);
+
 class ProAccessController extends AsyncNotifier<ProAccessState> {
   StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
   Timer? _restoreTimer;
-  final InAppPurchase _store = InAppPurchase.instance;
+  late final ProStore _store;
 
   @override
   Future<ProAccessState> build() async {
+    _store = ref.watch(proStoreProvider);
     ref.watch(authStateProvider);
     _purchaseSubscription ??= _store.purchaseStream.listen(
       _handlePurchases,
