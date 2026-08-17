@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/analytics/analytics_service.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
+import 'package:harikyu_lab/core/theme/app_theme_extension.dart';
 import 'package:harikyu_lab/features/auth/presentation/login_required_dialog.dart';
 import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 import 'package:harikyu_lab/features/questions/data/favorite_question_repository.dart';
@@ -522,7 +523,7 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
               const SizedBox(width: 16),
               Expanded(child: Text(studyQuestion.choices[answerIndex])),
               if (_selectedAnswer == answerIndex)
-                Icon(answerIndex == studyQuestion.correctAnswerIndex ? Icons.check_circle_rounded : Icons.cancel_rounded, color: answerIndex == studyQuestion.correctAnswerIndex ? Colors.green : Colors.red),
+                Icon(answerIndex == studyQuestion.correctAnswerIndex ? Icons.check_circle_rounded : Icons.cancel_rounded, color: answerIndex == studyQuestion.correctAnswerIndex ? Theme.of(context).extension<AppSurfaceTheme>()!.success : Theme.of(context).colorScheme.error),
             ]),
           ),
           const SizedBox(height: 12),

@@ -164,7 +164,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   Widget build(BuildContext context) {
     final isRegistration = widget.isRegistration;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           const Positioned.fill(child: _AuthBackground()),
@@ -522,17 +522,17 @@ class _AnimatedAuthButtonState extends State<_AnimatedAuthButton> {
               style: ElevatedButton.styleFrom(
                 elevation: 2,
                 backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                 textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 180),
                 child: widget.loading
-                    ? const SizedBox.square(
+                    ? SizedBox.square(
                         key: ValueKey('loading'),
                         dimension: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                        child: CircularProgressIndicator(strokeWidth: 2.4, color: Theme.of(context).colorScheme.onPrimary),
                       )
                     : Text(widget.label, key: const ValueKey('label')),
               ),

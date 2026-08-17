@@ -195,13 +195,13 @@ class _DeleteBackground extends StatelessWidget {
           color: color,
           borderRadius: BorderRadius.circular(AppConstants.cardRadius),
         ),
-        child: const Align(
+        child: Align(
           alignment: Alignment.centerRight,
           child: Padding(
             padding: EdgeInsets.only(right: 24),
             child: Icon(
               Icons.delete_outline_rounded,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onError,
               size: 30,
             ),
           ),
