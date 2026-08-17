@@ -27,7 +27,14 @@ abstract final class AppColors {
   static const darkBackground = Color(0xFF191913);
   static const darkSurface = Color(0xFF222218);
   static const darkSurfaceContainer = Color(0xFF2B2B20);
+  static const darkSurfaceContainerHigh = Color(0xFF343428);
   static const darkOnSurface = Color(0xFFF1EFE7);
   static const darkOnSurfaceVariant = Color(0xFFCFCBBE);
   static const darkOutline = Color(0xFF5C5A4A);
+  static const darkOutlineVariant = Color(0xFF464638);
+  static const darkSuccess = Color(0xFF9FC69A);
+  static const darkWarning = Color(0xFFE1B77C);
+  static const darkError = Color(0xFFFFB4AB);
+  static const darkErrorContainer = Color(0xFF6A2B2B);
+  static const darkOnErrorContainer = Color(0xFFFFDAD6);
 }

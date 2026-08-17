@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/core/widgets/app_page.dart';
+import 'package:harikyu_lab/core/theme/app_theme_extension.dart';
 import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
 
 class ProPurchaseScreen extends ConsumerWidget {
@@ -54,8 +55,8 @@ class ProPurchaseScreen extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 7),
                     child: Row(children: [
-                      const Icon(Icons.check_circle_rounded,
-                          color: Colors.green),
+                      Icon(Icons.check_circle_rounded,
+                          color: Theme.of(context).extension<AppSurfaceTheme>()!.success),
                       const SizedBox(width: 12),
                       Expanded(child: Text(feature)),
                     ]),
