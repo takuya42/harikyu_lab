@@ -47,6 +47,7 @@ class PushNotificationService {
 
       await _waitForApnsTokenIfNeeded();
       final token = await _messaging.getToken();
+      debugPrint('FCM TOKEN: $token');
       if (token != null) {
         await _subscribeTokenToTopic(token);
       }
