@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -55,7 +53,6 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   int _correctCount = 0;
   bool _isAnswering = false;
   List<StudyQuestion>? _sessionQuestions;
-  bool _freeLimitReached = false;
   final Map<String, int> _answers = {};
   DateTime? _startedAt;
   DateTime? _lastAnswerRecordedAt;
@@ -63,6 +60,8 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
   @override
   void initState() {
     super.initState();
+    // Keep the shared async entitlement/usage state active for answer actions.
+    ref.listenManual(usageLimitProvider, (_, _) {});
     _statisticsRepository = ref.read(
       studyStatisticsRepositoryProvider.future,
     );
@@ -107,17 +106,6 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       if (mounted) await context.push('/pro');
       return;
     }
-    final limitReached = await ref
-        .read(usageLimitProvider.notifier)
-        .hasReachedLimit();
-    debugPrint('[QuestionsScreen] UsageLimitService result=$limitReached');
-    if (limitReached) {
-      debugPrint(
-        '[QuestionsScreen] show free-limit UI reason=daily-limit-reached',
-      );
-      if (mounted) await context.push('/pro');
-      return;
-    }
     await _beginStudy();
   }
 
@@ -136,7 +124,6 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
       _isStudying = true;
       _isFinished = false;
       _sessionQuestions = null;
-      _freeLimitReached = false;
       _questionIndex = 0;
       _correctCount = 0;
       _selectedAnswer = null;
@@ -153,6 +140,12 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
     final answeredAt = DateTime.now();
     final answerStartedAt = _lastAnswerRecordedAt ?? _startedAt ?? answeredAt;
     try {
+      final allowed = await ref.read(usageLimitProvider.notifier).tryRecordAnswer();
+      if (!mounted) return;
+      if (!allowed) {
+        await context.push('/pro');
+        return;
+      }
       final repository = await _statisticsRepository;
       await repository.recordAnswer(isCorrect: isCorrect);
       await ref.read(analyticsServiceProvider).questionAnswered(
@@ -164,7 +157,6 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         answeredAt: answeredAt,
         duration: answeredAt.difference(answerStartedAt),
       );
-      await ref.read(usageLimitProvider.notifier).recordAnswer();
       _lastAnswerRecordedAt = answeredAt;
       if (!mounted) return;
       setState(() {
@@ -367,34 +359,13 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
           final hasProPlan = proPlan.requireValue;
           debugPrint('[QuestionsScreen] isProProvider=$hasProPlan');
 
-          // A Pro entitlement must bypass all free-usage reads and UI.
-          if (hasProPlan) {
-            _sessionQuestions = widget.wrongQuestionsOnly
-                ? createStudySession(filteredItems, isPro: true, random: _NoShuffleRandom())
-                : createStudySession(filteredItems, isPro: true);
-          } else {
-            final usage = ref.watch(usageLimitProvider);
-            if (usage.isLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (usage.hasError) return _loadError(usage.error!);
-            final used = usage.requireValue;
-            final limitReached = used >= freeDailyQuestionLimit;
-            _freeLimitReached = limitReached;
-            debugPrint(
-              '[QuestionsScreen] UsageLimitService result=$limitReached '
-              'used=$used',
-            );
-            final remaining = (freeDailyQuestionLimit - used).clamp(
-              0,
-              freeDailyQuestionLimit,
-            );
-            _sessionQuestions = (widget.wrongQuestionsOnly
-                    ? createStudySession(filteredItems, isPro: false, random: _NoShuffleRandom())
-                    : createStudySession(filteredItems, isPro: false))
-                .take(remaining)
-                .toList();
-          }
+          // Enforce the shared allowance at answer time, not by truncating the
+          // session: the sixth attempted answer must open the Pro screen.
+          _sessionQuestions = createStudySession(
+            filteredItems,
+            isPro: hasProPlan,
+            preserveQuestionOrder: widget.wrongQuestionsOnly,
+          );
         }
         final session = _sessionQuestions!;
         if (session.isEmpty && widget.wrongQuestionsOnly) {
@@ -402,16 +373,6 @@ class _QuestionsScreenState extends ConsumerState<QuestionsScreen> {
         }
         if (session.isEmpty && widget.favoritesOnly) {
           return const Center(child: Text('お気に入りはまだありません'));
-        }
-        if (session.isEmpty && _freeLimitReached) {
-          debugPrint(
-            '[QuestionsScreen] show free-limit UI reason=daily-limit-reached',
-          );
-          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('本日の無料分10問を学習しました。'),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: () => context.push('/pro'), child: const Text('Pro版で続ける')),
-          ]));
         }
         return _buildQuestionSession(context);
       },
@@ -590,15 +551,4 @@ class _ResultRow extends StatelessWidget {
           Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
         ]),
       );
-}
-
-class _NoShuffleRandom implements Random {
-  @override
-  bool nextBool() => false;
-
-  @override
-  double nextDouble() => 0;
-
-  @override
-  int nextInt(int max) => max - 1;
 }

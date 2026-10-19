@@ -20,25 +20,29 @@ List<StudyQuestion> createStudySession(
   required bool isPro,
   Random? random,
   int? questionCount,
+  bool preserveQuestionOrder = false,
 }) {
   final generator = random ?? Random();
-  final shuffledQuestions = List<Question>.of(questions)..shuffle(generator);
+  final shuffledQuestions = List<Question>.of(questions);
+  if (!preserveQuestionOrder) shuffledQuestions.shuffle(generator);
 
   final selectedQuestions = questionCount == null
       ? shuffledQuestions
       : shuffledQuestions.take(questionCount).toList();
 
-  return List.unmodifiable(selectedQuestions.map((question) {
-    final indexedChoices = [
-      for (var index = 0; index < question.choices.length; index++)
-        (index: index, text: question.choices[index]),
-    ]..shuffle(generator);
-    return StudyQuestion(
-      question: question,
-      choices: List.unmodifiable(indexedChoices.map((choice) => choice.text)),
-      correctAnswerIndex: indexedChoices.indexWhere(
-        (choice) => choice.index == question.correctAnswerIndex,
-      ),
-    );
-  }));
+  return List.unmodifiable(
+    selectedQuestions.map((question) {
+      final indexedChoices = [
+        for (var index = 0; index < question.choices.length; index++)
+          (index: index, text: question.choices[index]),
+      ]..shuffle(generator);
+      return StudyQuestion(
+        question: question,
+        choices: List.unmodifiable(indexedChoices.map((choice) => choice.text)),
+        correctAnswerIndex: indexedChoices.indexWhere(
+          (choice) => choice.index == question.correctAnswerIndex,
+        ),
+      );
+    }),
+  );
 }

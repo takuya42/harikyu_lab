@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const proProductId = 'harikyu_lab_pro';
 const proDisplayPrice = '¥980（税込・買い切り）';
-const freeDailyQuestionLimit = 20;
+const freeDailyQuestionLimit = 5;
 const freeMockExamQuestionLimit = 20;
 const _localProEntitlementKey = 'pro_entitlement_v1';
 
