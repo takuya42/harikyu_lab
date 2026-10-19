@@ -30,12 +30,19 @@ ProviderScope testApp({bool isPro = false}) => ProviderScope(
     );
 
 void main() {
-  testWidgets('ホーム上部に収録問題数を表示する', (tester) async {
+  testWidgets('統計カードの直上に収録問題数カードを表示する', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pump(const Duration(milliseconds: 900));
     await tester.pumpAndSettle();
 
-    expect(find.text('国家試験対策問題 350問収録'), findsOneWidget);
+    expect(find.text('国家試験対策問題 350問収録'), findsNothing);
+    expect(find.text('国家試験対策問題'), findsOneWidget);
+    expect(find.text('350問収録'), findsOneWidget);
+    expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
+    expect(
+      tester.getBottomLeft(find.text('350問収録')).dy,
+      lessThan(tester.getTopLeft(find.text('総回答数')).dy),
+    );
   });
 
   testWidgets('無料会員バッジからプラン内容と購入画面を確認できる', (tester) async {
