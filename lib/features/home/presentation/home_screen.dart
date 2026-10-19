@@ -29,11 +29,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    refreshCategoryQuestions(ref);
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      refreshCategoryQuestions(ref);
       ref.invalidate(studyCalendarProvider);
       ref.invalidate(dailyGoalProvider);
     }
@@ -69,6 +71,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
+            refreshCategoryQuestions(ref);
             await ref.read(studyCalendarRepositoryProvider).refresh();
             ref.invalidate(studyCalendarProvider);
             ref.invalidate(dailyGoalProvider);
