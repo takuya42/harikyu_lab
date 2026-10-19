@@ -94,22 +94,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ])),
                       _MembershipBadge(isPro: hasProPlan),
                     ]),
-                    const SizedBox(height: 12),
-                    Text(
-                      questionCount.when(
-                        data: (count) => '国家試験対策問題 $count問収録',
-                        loading: () => '収録問題数を読み込み中…',
-                        error: (_, _) => '収録問題数を取得できませんでした',
-                      ),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
                     const SizedBox(height: 30),
                     Text('今日も、一歩ずつ。', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 8),
                     Text('合格までの学びを、心地よく続けましょう。', style: TextStyle(color: colors.onSurfaceVariant)),
                     const SizedBox(height: 24),
+                    _QuestionCountCard(questionCount: questionCount),
+                    const SizedBox(height: 16),
                     _Stats(
                       summary: summary,
                       streakDays: streakDays,
@@ -144,6 +135,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _QuestionCountCard extends StatelessWidget {
+  const _QuestionCountCard({required this.questionCount});
+
+  final AsyncValue<int> questionCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return AppCard(
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(Icons.menu_book_outlined, color: colors.primary, size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '国家試験対策問題',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                questionCount.when(
+                  data: (count) => Text(
+                    '$count問収録',
+                    style: textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  loading: () => Text(
+                    '収録問題数を読み込み中…',
+                    style: textTheme.bodySmall,
+                  ),
+                  error: (_, _) => Text(
+                    '収録問題数を取得できませんでした',
+                    style: textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
