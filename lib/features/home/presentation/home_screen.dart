@@ -166,7 +166,7 @@ class _QuestionCountCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '国家試験対策問題',
+                  '総問題数',
                   style: textTheme.bodyMedium?.copyWith(
                     color: colors.onSurfaceVariant,
                   ),
@@ -174,7 +174,7 @@ class _QuestionCountCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 questionCount.when(
                   data: (count) => Text(
-                    '$count問収録',
+                    '$count数',
                     style: textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
