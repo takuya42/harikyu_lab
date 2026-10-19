@@ -174,7 +174,7 @@ class _QuestionCountCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 questionCount.when(
                   data: (count) => Text(
-                    '$count数',
+                    '$count問',
                     style: textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
