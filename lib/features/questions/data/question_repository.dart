@@ -279,6 +279,28 @@ final allQuestionsProvider = FutureProvider<List<Question>>((ref) async {
   return List.unmodifiable(questionsById.values);
 });
 
+/// Watches category data directly so cache synchronization also updates the count.
+final totalQuestionCountProvider = Provider<AsyncValue<int>>((ref) {
+  final categories = [
+    for (final category in questionSheetGids.keys)
+      ref.watch(categoryQuestionsProvider(category)),
+  ];
+  for (final category in categories) {
+    if (category.hasError && !category.hasValue) {
+      return AsyncError(category.error!, category.stackTrace!);
+    }
+  }
+  if (categories.any((category) => !category.hasValue)) {
+    return const AsyncLoading();
+  }
+  // Match allQuestionsProvider: the same question ID is counted only once.
+  final ids = {
+    for (final category in categories)
+      for (final question in category.value!) question.id,
+  };
+  return AsyncData(ids.length);
+});
+
 /// Filters the category selected in the UI against the spreadsheet category.
 ///
 /// Older sheets stored the same value in `subject`, so that column remains a

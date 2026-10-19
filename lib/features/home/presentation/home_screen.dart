@@ -6,6 +6,7 @@ import 'package:harikyu_lab/core/widgets/app_card.dart';
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/study_calendar_day.dart';
 import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
+import 'package:harikyu_lab/features/questions/data/question_repository.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -47,6 +48,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final questionCount = ref.watch(totalQuestionCountProvider);
     final hasProPlan = ref.watch(isProProvider).value ?? false;
     final summary = ref.watch(homeSummaryProvider);
     final streakDays = ref.watch(studyStreakProvider);
@@ -92,6 +94,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ])),
                       _MembershipBadge(isPro: hasProPlan),
                     ]),
+                    const SizedBox(height: 12),
+                    Text(
+                      questionCount.when(
+                        data: (count) => '国家試験対策問題 $count問収録',
+                        loading: () => '収録問題数を読み込み中…',
+                        error: (_, _) => '収録問題数を取得できませんでした',
+                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
                     const SizedBox(height: 30),
                     Text('今日も、一歩ずつ。', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 8),

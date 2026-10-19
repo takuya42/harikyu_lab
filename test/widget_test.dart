@@ -18,6 +18,9 @@ const _questions = [
 
 ProviderScope testApp({bool isPro = false}) => ProviderScope(
       overrides: [
+        totalQuestionCountProvider.overrideWith(
+          (ref) => const AsyncData(350),
+        ),
         isProProvider.overrideWith((ref) => Stream.value(isPro)),
         questionsProvider.overrideWith((ref) => Stream.value(_questions)),
         mockExamQuestionsProvider
@@ -27,6 +30,14 @@ ProviderScope testApp({bool isPro = false}) => ProviderScope(
     );
 
 void main() {
+  testWidgets('ホーム上部に収録問題数を表示する', (tester) async {
+    await tester.pumpWidget(testApp());
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+
+    expect(find.text('国家試験対策問題 350問収録'), findsOneWidget);
+  });
+
   testWidgets('無料会員バッジからプラン内容と購入画面を確認できる', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pump(const Duration(milliseconds: 900));
