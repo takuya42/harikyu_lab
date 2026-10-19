@@ -36,11 +36,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('国家試験対策問題 350問収録'), findsNothing);
-    expect(find.text('国家試験対策問題'), findsOneWidget);
-    expect(find.text('350問収録'), findsOneWidget);
+    expect(find.text('総問題数'), findsOneWidget);
+    expect(find.text('350数'), findsOneWidget);
     expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
     expect(
-      tester.getBottomLeft(find.text('350問収録')).dy,
+      tester.getBottomLeft(find.text('350数')).dy,
       lessThan(tester.getTopLeft(find.text('総回答数')).dy),
     );
   });
