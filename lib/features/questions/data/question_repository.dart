@@ -305,6 +305,8 @@ final totalQuestionCountProvider = Provider<AsyncValue<int>>((ref) {
 });
 
 /// Restart the cache-first streams, including their background CSV fetch.
+/// Call from an event handler or after a frame, never during widget mounting
+/// or build: existing consumers are synchronously notified by invalidate.
 void refreshCategoryQuestions(WidgetRef ref) {
   for (final category in questionSheetGids.keys) {
     ref.invalidate(categoryQuestionsProvider(category));

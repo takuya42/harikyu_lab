@@ -29,7 +29,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    refreshCategoryQuestions(ref);
+    // Home may be mounted while Navigator is building and other widgets are
+    // already watching these providers. Notify them only after that frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      refreshCategoryQuestions(ref);
+    });
   }
 
   @override
@@ -73,6 +78,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           onRefresh: () async {
             refreshCategoryQuestions(ref);
             await ref.read(studyCalendarRepositoryProvider).refresh();
+            if (!mounted) return;
             ref.invalidate(studyCalendarProvider);
             ref.invalidate(dailyGoalProvider);
           },
