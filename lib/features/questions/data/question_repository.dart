@@ -281,25 +281,35 @@ final allQuestionsProvider = FutureProvider<List<Question>>((ref) async {
 
 /// Watches category data directly so cache synchronization also updates the count.
 final totalQuestionCountProvider = Provider<AsyncValue<int>>((ref) {
-  final categories = [
+  final categories = {
     for (final category in questionSheetGids.keys)
-      ref.watch(categoryQuestionsProvider(category)),
-  ];
-  for (final category in categories) {
-    if (category.hasError && !category.hasValue) {
-      return AsyncError(category.error!, category.stackTrace!);
+      category: ref.watch(categoryQuestionsProvider(category)),
+  };
+  final available = categories.entries.where((entry) => entry.value.hasValue);
+  if (available.isEmpty) {
+    for (final category in categories.values) {
+      if (category.hasError) {
+        return AsyncError(category.error!, category.stackTrace!);
+      }
     }
-  }
-  if (categories.any((category) => !category.hasValue)) {
     return const AsyncLoading();
   }
-  // Match allQuestionsProvider: the same question ID is counted only once.
+  // IDs (including row_N fallbacks) are local to each sheet. Only collapse
+  // duplicate IDs within that sheet, never unrelated questions across subjects.
   final ids = {
-    for (final category in categories)
-      for (final question in category.value!) question.id,
+    for (final entry in available)
+      for (final question in entry.value.value!) (entry.key, question.id),
   };
+  debugPrint('[QuestionRepository] home total question count=${ids.length}');
   return AsyncData(ids.length);
 });
+
+/// Restart the cache-first streams, including their background CSV fetch.
+void refreshCategoryQuestions(WidgetRef ref) {
+  for (final category in questionSheetGids.keys) {
+    ref.invalidate(categoryQuestionsProvider(category));
+  }
+}
 
 /// Filters the category selected in the UI against the spreadsheet category.
 ///
