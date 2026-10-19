@@ -307,7 +307,7 @@ Future<void> _showMembershipDialog(
                       const Text('・模擬試験：すべて利用可能'),
                       const Text('・今後追加されるPro限定機能も無料で利用できます。'),
                     ] else ...[
-                      const Text('・一問一答：1日10問まで'),
+                      const Text('・回答は全学習モード合計で1日5問まで'),
                       const Text('・カテゴリ学習が利用できます'),
                       const Text('・学習カレンダーは過去7日間まで表示'),
                       const Text('・模擬試験は20問・20分を1日1回まで'),

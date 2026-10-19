@@ -112,7 +112,7 @@ void main() {
     expect(resolveProEntitlement(local: true, account: true), isTrue);
   });
 
-  test('無料ユーザーの1日の回答上限は20問', () {
-    expect(freeDailyQuestionLimit, 20);
+  test('無料ユーザーの1日の回答上限は5問', () {
+    expect(freeDailyQuestionLimit, 5);
   });
 }

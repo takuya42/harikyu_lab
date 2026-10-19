@@ -21,6 +21,7 @@ import 'package:harikyu_lab/features/learning_history/data/learning_history_repo
 import 'package:harikyu_lab/features/learning_history/data/study_calendar_repository.dart';
 import 'package:harikyu_lab/features/learning_history/domain/learning_history.dart';
 import 'package:harikyu_lab/features/pro/data/pro_access_service.dart';
+import 'package:harikyu_lab/features/pro/data/usage_limit_service.dart';
 
 const _questionCountPreferenceKey = 'mock_exam_question_count';
 const _timeLimitPreferenceKey = 'mock_exam_time_limit_minutes';
@@ -53,6 +54,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
   int _answeredCount = 0;
   bool _finished = false;
   bool _starting = false;
+  bool _isAnswering = false;
   int _questionCount = 20;
   int _timeLimitMinutes = 20;
   DateTime? _startedAt;
@@ -60,6 +62,7 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
   @override
   void initState() {
     super.initState();
+    ref.listenManual(usageLimitProvider, (_, _) {});
     WidgetsBinding.instance.addObserver(this);
     _timerSubscription = ref.listenManual(examTimerProvider, (previous, next) {
       if (next.isTimeUp && previous?.isTimeUp != true) _handleTimeUp();
@@ -207,24 +210,39 @@ class _MockExamScreenState extends ConsumerState<MockExamScreen>
         : configured.clamp(0, freeMockExamQuestionLimit);
   }
 
-  void _answer(int answer, StudyQuestion question) {
-    if (_selectedAnswer != null || ref.read(examTimerProvider).isPaused) return;
-    setState(() {
-      _selectedAnswer = answer;
-      _answers[question.question.id] = answer;
-      _answeredCount++;
-      if (answer == question.correctAnswerIndex) {
-        _correctCount++;
-      } else {
-        _incorrectQuestions.add(question);
+  Future<void> _answer(int answer, StudyQuestion question) async {
+    if (_selectedAnswer != null || _isAnswering || _finished ||
+        ref.read(examTimerProvider).isPaused) {
+      return;
+    }
+    _isAnswering = true;
+    try {
+      final allowed = await ref.read(usageLimitProvider.notifier).tryRecordAnswer();
+      if (!mounted || _finished) return;
+      if (!allowed) {
+        ref.read(examTimerProvider.notifier).pause();
+        await context.push('/pro');
+        return;
       }
-    });
-    final isCorrect = answer == question.correctAnswerIndex;
-    unawaited(ref.read(analyticsServiceProvider).questionAnswered(
-      questionId: question.question.id,
-      isCorrect: isCorrect,
-    ));
-    unawaited(_syncWrongQuestion(question, isCorrect: isCorrect));
+      setState(() {
+        _selectedAnswer = answer;
+        _answers[question.question.id] = answer;
+        _answeredCount++;
+        if (answer == question.correctAnswerIndex) {
+          _correctCount++;
+        } else {
+          _incorrectQuestions.add(question);
+        }
+      });
+      final isCorrect = answer == question.correctAnswerIndex;
+      unawaited(ref.read(analyticsServiceProvider).questionAnswered(
+        questionId: question.question.id,
+        isCorrect: isCorrect,
+      ));
+      unawaited(_syncWrongQuestion(question, isCorrect: isCorrect));
+    } finally {
+      _isAnswering = false;
+    }
   }
 
   Future<void> _syncWrongQuestion(

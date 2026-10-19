@@ -55,7 +55,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('無料プラン'), findsOneWidget);
-    expect(find.text('・1日10問まで学習できます'), findsOneWidget);
+    expect(find.text('・回答は全学習モード合計で1日5問まで'), findsOneWidget);
     expect(find.text('・問題数無制限'), findsOneWidget);
 
     await tester.tap(find.text('Pro版を見る'));
