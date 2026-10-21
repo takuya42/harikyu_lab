@@ -1,15 +1,17 @@
-import 'dart:async';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:harikyu_lab/core/providers/firebase_firestore_provider.dart';
 import 'package:harikyu_lab/core/providers/shared_preferences_provider.dart';
 import 'package:harikyu_lab/features/auth/data/auth_providers.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:harikyu_lab/features/pro/data/revenuecat_store.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
-const proProductId = 'harikyu_lab_pro';
+export 'revenuecat_store.dart' show proProductId, proEntitlementId, ProStore;
+
 const proDisplayPrice = '¥980（税込・買い切り）';
 const freeDailyQuestionLimit = 5;
 const freeMockExamQuestionLimit = 20;
@@ -35,8 +37,11 @@ final localProEntitlementRepositoryProvider =
       );
     });
 
-bool resolveProEntitlement({required bool local, required bool account}) =>
-    local || account;
+bool resolveProEntitlement({
+  required bool local,
+  required bool account,
+  bool revenueCat = false,
+}) => local || account || revenueCat;
 
 /// The persisted entitlement is scoped to a Firebase Authentication user.
 class ProPlanRepository {
@@ -44,18 +49,15 @@ class ProPlanRepository {
 
   final FirebaseFirestore _firestore;
 
-  Stream<bool> watchIsPro(String uid) => _firestore
-      .collection('users')
-      .doc(uid)
-      .snapshots()
-      .map((document) {
+  Stream<bool> watchIsPro(String uid) =>
+      _firestore.collection('users').doc(uid).snapshots().map((document) {
         final plan = document.data()?['plan'];
         debugPrint('[ProPlanRepository] Firestore plan=$plan uid=$uid');
         return plan == 'pro';
       });
 
-  /// This method is only called for a StoreKit purchase delivered by the
-  /// in_app_purchase purchase stream.
+  /// Only called after RevenueCat confirms an active Pro entitlement for a
+  /// purchase or restore. Preserve the existing account migration fallback.
   Future<void> grantPro(String uid, {required DateTime purchasedAt}) =>
       _firestore.collection('users').doc(uid).set({
         'plan': 'pro',
@@ -69,28 +71,79 @@ final proPlanRepositoryProvider = Provider<ProPlanRepository>(
   (ref) => ProPlanRepository(ref.watch(firebaseFirestoreProvider)),
 );
 
-/// The current plan combines the device's App Store entitlement with the
-/// signed-in account's existing Firestore plan. Either source unlocks Pro.
+final proStoreProvider = Provider<ProStore>(
+  (ref) => RevenueCatProStore.instance,
+);
+
+final revenueCatProProvider =
+    AsyncNotifierProvider<RevenueCatProController, bool>(
+      RevenueCatProController.new,
+    );
+
+class RevenueCatProController extends AsyncNotifier<bool> {
+  int _customerInfoRevision = 0;
+  @override
+  Future<bool> build() async {
+    final store = ref.watch(proStoreProvider);
+    // Register before initialization so a later successful retry (or pending
+    // purchase approval) still updates access after an initial SDK failure.
+    final subscription = store.customerInfoUpdates.listen(acceptCustomerInfo);
+    ref.onDispose(subscription.cancel);
+    if (!await store.initialize() || !ref.mounted) return false;
+    final revision = _customerInfoRevision;
+    try {
+      final info = await store.getCustomerInfo();
+      if (!ref.mounted) return false;
+      return revision == _customerInfoRevision
+          ? hasRevenueCatPro(info)
+          : state.value ?? false;
+    } on Exception {
+      // An unavailable SDK must never clear a legacy local/Firestore flag.
+      return ref.mounted ? state.value ?? false : false;
+    }
+  }
+
+  void acceptCustomerInfo(CustomerInfo info) {
+    if (ref.mounted) {
+      _customerInfoRevision++;
+      state = AsyncData(hasRevenueCatPro(info));
+    }
+  }
+}
+
+/// During migration, any of these independent sources unlocks Pro. Never clear
+/// legacy flags when RevenueCat is unconfigured, unavailable or has no receipt.
 final isProProvider = StreamProvider<bool>((ref) async* {
-  final localRepository = await ref.watch(
-    localProEntitlementRepositoryProvider.future,
-  );
+  final revenueCatIsPro = ref.watch(revenueCatProProvider).value ?? false;
+  final auth = ref.watch(authStateProvider);
+  final localFuture = ref.watch(localProEntitlementRepositoryProvider.future);
+  final localRepository = await localFuture;
+  if (!ref.mounted) return;
   final localIsPro = localRepository.isPro;
-  final user = await ref.watch(authStateProvider.future);
-  if (user == null) {
-    debugPrint('[isProProvider] value=$localIsPro (signed out)');
-    yield localIsPro;
+  final deviceIsPro = localIsPro || revenueCatIsPro;
+  if (deviceIsPro) {
+    yield true;
     return;
   }
-  yield localIsPro;
+  if (auth.hasError) {
+    Error.throwWithStackTrace(auth.error!, auth.stackTrace!);
+  }
+  // Wait for the auth provider to rebuild us instead of creating an orphaned
+  // auth Future when a RevenueCat update already grants access.
+  if (!auth.hasValue) return;
+  final user = auth.value;
+  if (user == null) {
+    yield deviceIsPro;
+    return;
+  }
+  // Do not briefly emit free for a legacy account before its plan is loaded.
   await for (final accountIsPro
       in ref.watch(proPlanRepositoryProvider).watchIsPro(user.uid)) {
-    final isPro = resolveProEntitlement(
+    yield resolveProEntitlement(
       local: localIsPro,
       account: accountIsPro,
+      revenueCat: revenueCatIsPro,
     );
-    debugPrint('[isProProvider] value=$isPro');
-    yield isPro;
   }
 });
 
@@ -106,14 +159,14 @@ class ProAccessState {
   final bool isLoading;
   final bool isPurchasing;
   final bool storeAvailable;
-  final ProductDetails? product;
+  final StoreProduct? product;
   final String? message;
 
   ProAccessState copyWith({
     bool? isLoading,
     bool? isPurchasing,
     bool? storeAvailable,
-    ProductDetails? product,
+    StoreProduct? product,
     String? message,
   }) => ProAccessState(
     isLoading: isLoading ?? this.isLoading,
@@ -129,79 +182,34 @@ final proAccessProvider =
       ProAccessController.new,
     );
 
-/// StoreKit boundary kept independent from Firebase Authentication. This also
-/// makes it possible to verify that guest purchase and restore actions call the
-/// App Store directly without introducing an account prerequisite.
-abstract interface class ProStore {
-  Stream<List<PurchaseDetails>> get purchaseStream;
-
-  Future<bool> isAvailable();
-  Future<ProductDetailsResponse> queryProductDetails(Set<String> identifiers);
-  Future<bool> buyNonConsumable({required PurchaseParam purchaseParam});
-  Future<void> restorePurchases();
-  Future<void> completePurchase(PurchaseDetails purchase);
-}
-
-class InAppPurchaseProStore implements ProStore {
-  InAppPurchaseProStore(this._store);
-
-  final InAppPurchase _store;
-
-  @override
-  Stream<List<PurchaseDetails>> get purchaseStream => _store.purchaseStream;
-
-  @override
-  Future<bool> isAvailable() => _store.isAvailable();
-
-  @override
-  Future<ProductDetailsResponse> queryProductDetails(
-    Set<String> identifiers,
-  ) => _store.queryProductDetails(identifiers);
-
-  @override
-  Future<bool> buyNonConsumable({required PurchaseParam purchaseParam}) =>
-      _store.buyNonConsumable(purchaseParam: purchaseParam);
-
-  @override
-  Future<void> restorePurchases() => _store.restorePurchases();
-
-  @override
-  Future<void> completePurchase(PurchaseDetails purchase) =>
-      _store.completePurchase(purchase);
-}
-
-final proStoreProvider = Provider<ProStore>(
-  (_) => InAppPurchaseProStore(InAppPurchase.instance),
-);
-
 class ProAccessController extends AsyncNotifier<ProAccessState> {
-  StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
-  Timer? _restoreTimer;
-  late final ProStore _store;
-
   @override
   Future<ProAccessState> build() async {
-    _store = ref.watch(proStoreProvider);
-    ref.watch(authStateProvider);
-    _purchaseSubscription ??= _store.purchaseStream.listen(
-      _handlePurchases,
-      onError: _handlePurchaseStreamError,
-    );
-    ref.onDispose(() {
-      _restoreTimer?.cancel();
-      _purchaseSubscription?.cancel();
-    });
-
-    final available = await _store.isAvailable();
-    if (!available) {
-      return const ProAccessState(isLoading: false, storeAvailable: false);
+    final store = ref.watch(proStoreProvider);
+    ref.listen(authStateProvider, (_, _) {});
+    // Keep RevenueCat customer updates active while the purchase UI is open.
+    ref.read(revenueCatProProvider);
+    if (!await store.initialize()) {
+      return const ProAccessState(
+        isLoading: false,
+        storeAvailable: false,
+        message: '現在購入サービスを利用できません。時間をおいて再度お試しください。',
+      );
     }
-    final response = await _store.queryProductDetails({proProductId});
-    return ProAccessState(
-      isLoading: false,
-      product: response.productDetails.firstOrNull,
-      message: response.error?.message,
-    );
+    try {
+      final product = await store.getProProduct();
+      return ProAccessState(
+        isLoading: false,
+        product: product,
+        message: product == null ? 'Pro商品を取得できませんでした。購入の復元は利用できます。' : null,
+      );
+    } on Exception {
+      // A product lookup failure must not prevent legacy purchase restoration.
+      return const ProAccessState(
+        isLoading: false,
+        message: '商品を取得できませんでした。購入の復元は利用できます。',
+      );
+    }
   }
 
   Future<void> purchase() async {
@@ -210,18 +218,21 @@ class ProAccessController extends AsyncNotifier<ProAccessState> {
     if (product == null || current?.isPurchasing == true) return;
     state = AsyncData(current!.copyWith(isPurchasing: true));
     try {
-      final started = await _store.buyNonConsumable(
-        purchaseParam: PurchaseParam(productDetails: product),
+      final info = await ref.read(proStoreProvider).purchase(product);
+      if (!ref.mounted) return;
+      await _acceptPurchase(info, restored: false);
+    } on PlatformException catch (error) {
+      // Platform/channel failures may use non-numeric codes.
+      final code = int.tryParse(error.code);
+      _finish(
+        code == PurchasesErrorCode.purchaseCancelledError.index
+            ? '購入をキャンセルしました。'
+            : code == PurchasesErrorCode.paymentPendingError.index
+            ? '購入の承認を待っています。承認後に購入情報が更新されます。'
+            : '購入を完了できませんでした。購入済みの場合は「購入を復元」をお試しください。',
       );
-      if (!started) {
-        state = AsyncData(
-          current.copyWith(message: '購入処理を開始できませんでした。'),
-        );
-      }
-    } on Exception catch (error) {
-      state = AsyncData(
-        current.copyWith(message: '購入処理を開始できませんでした: $error'),
-      );
+    } on Exception {
+      _finish('購入情報を確認できませんでした。「購入を復元」をお試しください。');
     }
   }
 
@@ -230,90 +241,65 @@ class ProAccessController extends AsyncNotifier<ProAccessState> {
     if (current == null || current.isPurchasing) return;
     state = AsyncData(current.copyWith(isPurchasing: true));
     try {
-      await _store.restorePurchases();
-    } on Exception catch (error) {
-      state = AsyncData(
-        current.copyWith(message: '購入情報を復元できませんでした: $error'),
+      final store = ref.read(proStoreProvider);
+      if (!await store.initialize()) {
+        _finish('現在購入サービスを利用できません。時間をおいて再度お試しください。');
+        return;
+      }
+      final info = await store.restorePurchases();
+      await _acceptPurchase(info, restored: true);
+    } on Exception {
+      _finish('購入情報を復元できませんでした。既存のPro状態は維持されます。');
+    }
+  }
+
+  Future<void> _acceptPurchase(
+    CustomerInfo info, {
+    required bool restored,
+  }) async {
+    if (!ref.mounted) return;
+    ref.read(revenueCatProProvider.notifier).acceptCustomerInfo(info);
+    if (!hasRevenueCatPro(info)) {
+      _finish(
+        restored
+            ? '復元できるPro購入情報を確認できませんでした。既存のPro状態は維持されます。'
+            : '購入後のPro情報を確認できませんでした。「購入を復元」をお試しください。',
       );
       return;
     }
-    _restoreTimer?.cancel();
-    _restoreTimer = Timer(const Duration(seconds: 10), () {
-      final latest = state.value;
-      if (latest?.isPurchasing == true) {
-        state = AsyncData(latest!.copyWith(
-          isPurchasing: false,
-          message: '復元できる購入情報はありませんでした。',
-        ));
+    // Preserve the previous lifetime-purchase persistence and account sync.
+    // Never grant Pro solely from a transaction or an unrelated entitlement.
+    final localRepository = await ref.read(
+      localProEntitlementRepositoryProvider.future,
+    );
+    await localRepository.grantPro();
+    if (!ref.mounted) return;
+    ref.invalidate(isProProvider);
+    try {
+      // Account sync is optional: never wait for authentication to purchase.
+      final user = ref.read(authStateProvider).value;
+      if (user != null) {
+        final purchasedAt =
+            DateTime.tryParse(
+              info.entitlements.active[proEntitlementId]!.latestPurchaseDate,
+            ) ??
+            DateTime.now();
+        await ref
+            .read(proPlanRepositoryProvider)
+            .grantPro(user.uid, purchasedAt: purchasedAt);
       }
-    });
-  }
-
-  Future<void> _handlePurchases(List<PurchaseDetails> purchases) async {
-    var granted = false;
-    var pending = false;
-    String? message;
-    for (final purchase in purchases) {
-      if (purchase.productID != proProductId) continue;
-      try {
-        if (purchase.status == PurchaseStatus.purchased ||
-            purchase.status == PurchaseStatus.restored) {
-          await (await ref.read(
-            localProEntitlementRepositoryProvider.future,
-          )).grantPro();
-          ref.invalidate(isProProvider);
-          granted = true;
-
-          final user = await ref.read(authStateProvider.future);
-          if (user != null) {
-            try {
-              await ref.read(proPlanRepositoryProvider).grantPro(
-                user.uid,
-                purchasedAt: _purchaseDate(purchase),
-              );
-            } on FirebaseException catch (error) {
-              debugPrint(
-                '[ProAccessController] Failed to sync account plan: '
-                '${error.message ?? error.code}',
-              );
-            }
-          }
-        } else if (purchase.status == PurchaseStatus.error) {
-          message = purchase.error?.message ?? '購入に失敗しました。';
-        } else if (purchase.status == PurchaseStatus.canceled) {
-          message = '購入をキャンセルしました。';
-        } else if (purchase.status == PurchaseStatus.pending) {
-          pending = true;
-        }
-        if (purchase.pendingCompletePurchase) {
-          await _store.completePurchase(purchase);
-        }
-      } on Exception catch (error) {
-        message = '購入は確認できましたが、Pro状態を保存できませんでした: $error';
-      }
+    } on Exception {
+      // Firebase is optional for purchase: entitlement and local access survive.
+      debugPrint(
+        '[ProAccessController] Account plan sync failed; Pro is retained.',
+      );
     }
-    if (!pending) _restoreTimer?.cancel();
-    final current = state.value ?? const ProAccessState();
-    state = AsyncData(current.copyWith(
-      isLoading: false,
-      isPurchasing: pending,
-      message: granted ? 'ご購入ありがとうございます。Pro機能を解放しました。' : message,
-    ));
+    _finish(restored ? 'Proの購入を復元しました。' : 'ご購入ありがとうございます。Pro機能を解放しました。');
   }
 
-  DateTime _purchaseDate(PurchaseDetails purchase) {
-    final milliseconds = int.tryParse(purchase.transactionDate ?? '');
-    return milliseconds == null
-        ? DateTime.now()
-        : DateTime.fromMillisecondsSinceEpoch(milliseconds);
-  }
-
-  void _handlePurchaseStreamError(Object error) {
+  void _finish(String message) {
+    if (!ref.mounted) return;
     final current = state.value ?? const ProAccessState();
-    state = AsyncData(current.copyWith(
-      isLoading: false,
-      isPurchasing: false,
-      message: '購入情報を確認できませんでした。',
-    ));
+    state = AsyncData(current.copyWith(isPurchasing: false, message: message));
   }
 }
