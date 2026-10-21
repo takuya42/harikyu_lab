@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:harikyu_lab/features/pro/data/revenuecat_store.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
+import 'helpers/revenuecat_fakes.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const channel = MethodChannel('purchases_flutter');
@@ -74,6 +76,18 @@ void main() {
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
+  });
+
+  test('Dashboardのidentifier proで判定しDisplay Nameをidentifierとして扱わない', () {
+    expect(
+      hasRevenueCatPro(customerInfo(pro: true, entitlement: 'pro')),
+      isTrue,
+    );
+    expect(
+      hasRevenueCatPro(customerInfo(pro: true, entitlement: 'はりきゅうラボ Pro')),
+      isFalse,
+    );
+    expect(hasRevenueCatPro(customerInfo()), isFalse);
   });
 
   test('初期化は匿名ユーザーで一度だけ、決済完了処理もRevenueCatに任せる', () async {
