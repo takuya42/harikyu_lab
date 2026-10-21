@@ -1,11 +1,27 @@
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
+const { defineSecret, defineBoolean } = require('firebase-functions/params');
+const { createRevenueCatHandler } = require('./revenuecat');
 
 admin.initializeApp();
 
 const db = admin.firestore();
 const auth = admin.auth();
+
+const revenueCatAuthorization = defineSecret('REVENUECAT_WEBHOOK_AUTHORIZATION');
+const developerFcmToken = defineSecret('DEVELOPER_FCM_TOKEN');
+const notifyRenewals = defineBoolean('REVENUECAT_NOTIFY_RENEWALS', { default: false });
+
+exports.revenueCatWebhook = onRequest({
+  secrets: [revenueCatAuthorization, developerFcmToken],
+}, createRevenueCatHandler({
+  db,
+  messaging: admin.messaging(),
+  authorization: () => revenueCatAuthorization.value(),
+  token: () => developerFcmToken.value(),
+  notifyRenewals: () => notifyRenewals.value(),
+}));
 
 async function deleteUserFirestoreData(uid) {
   if (!uid) {
