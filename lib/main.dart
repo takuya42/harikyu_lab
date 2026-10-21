@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:harikyu_lab/app/app.dart';
 import 'package:harikyu_lab/core/notifications/push_notification_service.dart';
 import 'package:harikyu_lab/firebase_options.dart';
+import 'package:harikyu_lab/features/pro/data/revenuecat_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +16,8 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+  await RevenueCatProStore.instance.initialize();
 
   runApp(
     const ProviderScope(

@@ -24,7 +24,9 @@ class ProPurchaseScreen extends ConsumerWidget {
     ref.listen(proAccessProvider, (_, next) {
       final message = next.value?.message;
       if (message != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     });
     final busy = state?.isLoading == true || state?.isPurchasing == true;
@@ -37,15 +39,18 @@ class ProPurchaseScreen extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.only(top: 16, bottom: 32),
         children: [
-          Icon(Icons.workspace_premium_rounded,
-              size: 72, color: Theme.of(context).colorScheme.primary),
+          Icon(
+            Icons.workspace_premium_rounded,
+            size: 72,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           const SizedBox(height: 12),
           Text(
             hasProPlan ? 'Pro版をご利用中です' : '学びを、もっと自由に。',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 24),
           AppCard(
@@ -54,23 +59,31 @@ class ProPurchaseScreen extends ConsumerWidget {
                 for (final feature in _features)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 7),
-                    child: Row(children: [
-                      Icon(Icons.check_circle_rounded,
-                          color: Theme.of(context).extension<AppSurfaceTheme>()!.success),
-                      const SizedBox(width: 12),
-                      Expanded(child: Text(feature)),
-                    ]),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: Theme.of(
+                            context,
+                          ).extension<AppSurfaceTheme>()!.success,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(child: Text(feature)),
+                      ],
+                    ),
                   ),
               ],
             ),
           ),
           const SizedBox(height: 24),
           Text(
-            proDisplayPrice,
+            state?.product == null
+                ? proDisplayPrice
+                : '${state!.product!.priceString}（買い切り）',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 12),
           const FittedBox(
@@ -101,13 +114,13 @@ class ProPurchaseScreen extends ConsumerWidget {
             const SizedBox(height: 10),
             const Text('現在ストアに接続できません。', textAlign: TextAlign.center),
           ],
-          if (!hasProPlan)
-            TextButton(
-              onPressed: busy
-                  ? null
-                  : () => ref.read(proAccessProvider.notifier).restore(),
-              child: const Text('購入を復元'),
-            ),
+          // Legacy Pro owners must also be able to migrate their receipt.
+          TextButton(
+            onPressed: busy
+                ? null
+                : () => ref.read(proAccessProvider.notifier).restore(),
+            child: const Text('購入を復元'),
+          ),
           const SizedBox(height: 12),
           Text(
             '商品ID: $proProductId',

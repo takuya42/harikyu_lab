@@ -64,3 +64,5 @@ flutter pub get
 flutter analyze
 flutter test
 ```
+
+Pro課金のRevenueCat設定・Public SDK API Keyの指定・既存購入者の復元手順は [RevenueCat設定](docs/revenuecat_setup.md) を参照してください。
