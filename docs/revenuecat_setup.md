@@ -5,7 +5,8 @@
 - SDK: `purchases_flutter`。購入・復元の実行主体をRevenueCatに一本化し、`in_app_purchase`は使用しません。
 - 既存の商品ID: **`harikyu_lab_pro`**（変更しません）。非消耗型の買い切り商品です。
 - Entitlementのidentifier: **`pro`**。Display Name「はりきゅうラボ Pro」とは別の値で、identifierとの完全一致が必要です。
-- iOS Bundle ID: **`com.harikyulab.harikyuLab`**。
+- iOS Bundle ID: **`com.kono.harikyu-lab`**。
+- Firebaseも同じBundle IDで登録したiOSアプリの`GoogleService-Info.plist`と`DefaultFirebaseOptions.ios`を使用します。FirebaseのアプリID・API Keyはダウンロードした設定に合わせ、旧アプリの設定でBundle IDだけを書き換えないでください。macOSのFirebase設定は別途扱います。
 - 商品の取得は`Purchases.getProducts`の非サブスクリプション指定、購入は`Purchases.purchase`、復元は`Purchases.restorePurchases`です。現在の画面ではOfferings/Packagesを使わず商品IDで取得します。
 - 上記はリポジトリで確認した値です。App Store Connect/RevenueCat Dashboardの実際の設定は未確認です。不一致があればコードの商品IDを変更せず、既存のApp Store商品とDashboardの紐付けを確認してください。
 
