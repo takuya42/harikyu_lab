@@ -5,7 +5,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 
 // Keep the existing App Store non-consumable product identifier unchanged.
 const proProductId = 'harikyu_lab_pro';
-const proEntitlementId = 'はりきゅうラボ Pro';
+const proEntitlementId = 'pro';
 
 class RevenueCatConfiguration {
   const RevenueCatConfiguration({

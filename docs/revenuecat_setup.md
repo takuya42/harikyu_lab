@@ -4,7 +4,7 @@
 
 - SDK: `purchases_flutter`。購入・復元の実行主体をRevenueCatに一本化し、`in_app_purchase`は使用しません。
 - 既存の商品ID: **`harikyu_lab_pro`**（変更しません）。非消耗型の買い切り商品です。
-- Entitlementのidentifier: **`はりきゅうラボ Pro`**。表示名ではなくidentifierとの完全一致が必要です。
+- Entitlementのidentifier: **`pro`**。Display Name「はりきゅうラボ Pro」とは別の値で、identifierとの完全一致が必要です。
 - iOS Bundle ID: **`com.harikyulab.harikyuLab`**。
 - 商品の取得は`Purchases.getProducts`の非サブスクリプション指定、購入は`Purchases.purchase`、復元は`Purchases.restorePurchases`です。現在の画面ではOfferings/Packagesを使わず商品IDで取得します。
 - 上記はリポジトリで確認した値です。App Store Connect/RevenueCat Dashboardの実際の設定は未確認です。不一致があればコードの商品IDを変更せず、既存のApp Store商品とDashboardの紐付けを確認してください。
@@ -40,7 +40,7 @@ iOSではFlutter依存導入後にmacOS上で`cd ios && pod install`を実行し
 
 移行中のPro判定は以下のORです。
 
-1. RevenueCatの`entitlements.active['はりきゅうラボ Pro']`が有効。
+1. RevenueCatの`entitlements.active['pro']`が有効。
 2. 従来のSharedPreferencesの`pro_entitlement_v1`がtrue。
 3. ログイン中のFirestoreの`users/{uid}.plan`が`pro`。
 
@@ -56,7 +56,7 @@ iOSではFlutter依存導入後にmacOS上で`cd ios && pod install`を実行し
 
 1. 既存のApp Storeアプリ（上記Bundle ID）を登録/選択し、App Store Connect連携に必要な認証情報をDashboard側に設定します。認証情報はモバイルアプリに入れません。
 2. Product catalogへ既存の`harikyu_lab_pro`を非消耗型商品として登録/取り込みます。新規の別商品IDへ置き換えないでください。
-3. Entitlementの**identifier**を`はりきゅうラボ Pro`として作成/確認し、上記商品を紐付けます。購入成功だけではなく、このEntitlementの有効性をコードで確認します。現実のidentifierが違う場合はリリース前に確認してください。
+3. Entitlementの**identifier**を`pro`として作成/確認し、上記商品を紐付けます。購入成功だけではなく、このEntitlementの有効性をコードで確認します。現実のidentifierが違う場合はリリース前に確認してください。
 4. Restoration/transfer behaviorは、再インストール後の匿名ユーザーによる復元を許可する設定にします。今回の匿名運用では、必要に応じて **Transfer to new App User ID** を選択して、既存購入者での復元を検証してください。Keep with original App User ID等の移行を拒否する設定は避けます。
 5. Integrationsから公式Slack連携を追加し、対象ワークスペース/チャンネルへ接続します。買い切り購入イベントとSandbox通知の扱いを確認します。アプリやFirebase FunctionsからSlack/FCMへ通知するコードは追加していません。
 
